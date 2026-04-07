@@ -46,6 +46,7 @@ export class ChatService {
       },
     });
 
+    console.log(`[CHAT] Room created from web: ${room.id} (${nickname})`);
     this.eventEmitter.emit('room.created', room);
 
     return room;
@@ -76,6 +77,7 @@ export class ChatService {
       },
     });
 
+    console.log(`[CHAT] Room created from bot: ${room.id} (${nickname})`);
     this.eventEmitter.emit('room.created', room);
 
     return room;

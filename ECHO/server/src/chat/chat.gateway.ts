@@ -13,7 +13,11 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://echo-web-tg.vercel.app',
+    ],
     credentials: true,
   },
 })

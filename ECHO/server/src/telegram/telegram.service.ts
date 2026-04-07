@@ -1028,7 +1028,7 @@ export class TelegramService implements OnModuleInit {
     topic: string;
     source?: string;
   }) {
-
+    console.log(`[TELEGRAM] Event room.created received. Source: ${room.source}, ID: ${room.id}`);
     const srcIcon = room.source === 'telegram' ? '📱' : '🌐';
     const message =
       `<b>🔔 Новый запрос на чат!</b> ${srcIcon}\n\n` +
