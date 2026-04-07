@@ -59,6 +59,15 @@ export class TelegramService implements OnModuleInit {
     console.log(`[TELEGRAM] Volunteer Group ID: ${this.volunteerGroupId}`);
   }
 
+  private escapeHTML(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   async onModuleInit() {
     try {
       const me = await this.bot.telegram.getMe();
@@ -1022,36 +1031,25 @@ export class TelegramService implements OnModuleInit {
 
     const srcIcon = room.source === 'telegram' ? '📱' : '🌐';
     const message =
-      `🔔 Новый запрос на чат! ${srcIcon}\n\n` +
-      `👤 Ник: ${room.anonNickname}\n` +
-      `🎭 Настроение: ${room.mood}\n` +
-      `💬 Тема: ${room.topic}\n\n` +
-      `Нажми кнопку, чтобы оценить сложность и принять.`;
+      `<b>🔔 Новый запрос на чат!</b> ${srcIcon}\n\n` +
+      `<b>👤 Ник:</b> ${this.escapeHTML(room.anonNickname)}\n` +
+      `<b>🎭 Настроение:</b> ${this.escapeHTML(room.mood)}\n` +
+      `<b>💬 Тема:</b> ${this.escapeHTML(room.topic)}\n\n` +
+      `Нажми кнопку ниже, чтобы принять.`;
 
-    const inlineKeyboardMarkup = {
-      ...Markup.inlineKeyboard([
-        Markup.button.callback(
-          '✅ Доступно для принятия',
-          `accept_chat:${room.id}`,
-        ),
-      ]),
-    };
+    const markup = Markup.inlineKeyboard([
+      Markup.button.callback('✅ Принять чат', `accept_chat:${room.id}`),
+    ]);
 
     // If VOLUNTEER_GROUP_ID is set, just spam the group instead of everyone in PM
     if (this.volunteerGroupId) {
        console.log(`[TELEGRAM] Attempting to notify group: ${this.volunteerGroupId}`);
        try {
-           const markup = Markup.inlineKeyboard([
-             Markup.button.callback('✅ Доступно для принятия', `accept_chat:${room.id}`),
-           ]);
            await this.bot.telegram.sendMessage(this.volunteerGroupId, message, {
-             parse_mode: 'Markdown',
+             parse_mode: 'HTML',
              ...markup,
            });
            console.log(`[TELEGRAM] Group notification sent.`);
-           // Note: No return here, to allow PM fallback or separate logic if needed, 
-           // but traditionally we want to skip PM if group works. 
-           // Let's stick with return if successful.
            return;
        } catch (err) {
            console.error(`[TELEGRAM] Failed to send to group ${this.volunteerGroupId}:`, err.message);
