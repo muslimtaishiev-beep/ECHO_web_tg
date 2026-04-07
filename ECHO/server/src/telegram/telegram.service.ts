@@ -69,13 +69,15 @@ export class TelegramService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    try {
-      const me = await this.bot.telegram.getMe();
-      this.botId = me.id;
-      console.log(`🤖 Telegram Bot [${me.username}] initialized.`);
-    } catch (err) {
-      console.error('⚠️ Telegram Bot initialization failed:', err);
-    }
+    // Initialize bot in background to not block the server port binding
+    this.bot.telegram.getMe()
+      .then(me => {
+        this.botId = me.id;
+        console.log(`🤖 Telegram Bot [${me.username}] initialized.`);
+      })
+      .catch(err => {
+        console.error('⚠️ Telegram Bot initialization failed:', err);
+      });
   }
 
   private getSession(tgId: number): UserSession {
