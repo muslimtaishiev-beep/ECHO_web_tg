@@ -597,7 +597,7 @@ export class TelegramService implements OnModuleInit {
     });
 
     if (volunteer) {
-      let activeRoom = null;
+      let activeRoom: any = null;
       if (requestedRoomId) {
          activeRoom = await this.prisma.chatRoom.findFirst({
              where: { id: requestedRoomId, volunteerId: volunteer.id, status: 'active' }

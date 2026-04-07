@@ -19,7 +19,7 @@ export class AdminController {
 
   // Login is UNGUARDED — no JWT required
   @Post('login')
-  async login(@Body() dto: { username: string; password?: string }) {
+  async login(@Body() dto: { username: string; password: string }) {
     return this.adminService.login(dto);
   }
 
