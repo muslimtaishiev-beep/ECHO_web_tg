@@ -12,7 +12,10 @@ import { ChatService } from './chat.service';
 import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
-  cors: true, // Let IoAdapter handle specific rules
+  cors: {
+    origin: ['https://echo-web-tg.vercel.app', 'http://localhost:5173'],
+    credentials: true,
+  },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
