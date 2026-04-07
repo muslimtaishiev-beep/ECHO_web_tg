@@ -7,6 +7,7 @@ import {
   Command,
   On,
   Message,
+  Ctx
 } from 'nestjs-telegraf';
 import { Context, Telegraf, Markup } from 'telegraf';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -816,7 +817,7 @@ export class TelegramService implements OnModuleInit {
   // TEXT MESSAGE HANDLER (routing)
   // ─────────────────────────────────────────────
   @On('text')
-  async onMessage(@Message('text') text: string, ctx: Context) {
+  async onMessage(@Message('text') text: string, @Ctx() ctx: Context) {
     const tgUser = ctx.from;
     if (!tgUser) return;
 
