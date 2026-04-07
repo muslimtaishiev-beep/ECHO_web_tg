@@ -15,7 +15,11 @@ async function bootstrap() {
   // CORS — configurable via env
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
-    : ['http://localhost:5173', 'http://localhost:3000'];
+    : [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://echo-web-tg.vercel.app',
+      ];
   app.enableCors({ origin: corsOrigins, credentials: true });
 
   // Global exception filter — consistent JSON errors
