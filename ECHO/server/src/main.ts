@@ -12,15 +12,12 @@ async function bootstrap() {
         : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // CORS — configurable via env
-  const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
-    : [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'https://echo-web-tg.vercel.app',
-      ];
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+  });
 
   // Global exception filter — consistent JSON errors
   app.useGlobalFilters(new GlobalExceptionFilter());
@@ -54,9 +51,9 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
   logger.log(`🚀 Echo server running on http://localhost:${port}`);
-  logger.log(`🔌 WebSocket gateway active`);
+  logger.log(`🔌 WebSocket gateway active (Path: /socket.io)`);
   logger.log(`🔒 AES-256 encryption enabled`);
-  logger.log(`🌐 CORS origins: ${corsOrigins.join(', ')}`);
+  logger.log(`🌐 CORS enabled for all origins (debug mode)`);
   if (process.env.NODE_ENV !== 'production') {
     logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
   }

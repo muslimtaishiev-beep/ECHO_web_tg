@@ -12,22 +12,10 @@ import { ChatService } from './chat.service';
 import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
+  path: '/socket.io',
   cors: {
-    origin: (origin, callback) => {
-      // Allow localhost and Vercel domains
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'https://echo-web-tg.vercel.app',
-      ];
-      if (!origin || allowedOrigins.some(o => origin.startsWith(o))) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
+    origin: '*',
     credentials: true,
-    methods: ['GET', 'POST'],
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
