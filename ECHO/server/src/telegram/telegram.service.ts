@@ -46,6 +46,8 @@ export class TelegramService implements OnModuleInit {
       this.adminTelegramId = parseInt(adminIdEnv, 10);
     }
     this.volunteerGroupId = process.env.VOLUNTEER_GROUP_ID || null;
+    console.log(`[TELEGRAM] Admin ID: ${this.adminTelegramId}`);
+    console.log(`[TELEGRAM] Volunteer Group ID: ${this.volunteerGroupId}`);
   }
 
   async onModuleInit() {
@@ -1028,11 +1030,22 @@ export class TelegramService implements OnModuleInit {
 
     // If VOLUNTEER_GROUP_ID is set, just spam the group instead of everyone in PM
     if (this.volunteerGroupId) {
+       console.log(`[TELEGRAM] Attempting to notify group: ${this.volunteerGroupId}`);
        try {
-           await this.bot.telegram.sendMessage(this.volunteerGroupId, message, inlineKeyboardMarkup);
+           const markup = Markup.inlineKeyboard([
+             Markup.button.callback('✅ Доступно для принятия', `accept_chat:${room.id}`),
+           ]);
+           await this.bot.telegram.sendMessage(this.volunteerGroupId, message, {
+             parse_mode: 'Markdown',
+             ...markup,
+           });
+           console.log(`[TELEGRAM] Group notification sent.`);
+           // Note: No return here, to allow PM fallback or separate logic if needed, 
+           // but traditionally we want to skip PM if group works. 
+           // Let's stick with return if successful.
            return;
        } catch (err) {
-           console.error(`Failed to send to group ${this.volunteerGroupId}, falling back to direct messages:`, err);
+           console.error(`[TELEGRAM] Failed to send to group ${this.volunteerGroupId}:`, err.message);
        }
     }
 
