@@ -12,11 +12,7 @@ import { ChatService } from './chat.service';
 import { OnEvent } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
-  path: '/socket.io',
-  cors: {
-    origin: '*',
-    credentials: true,
-  },
+  cors: true, // Let IoAdapter handle specific rules
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

@@ -22,6 +22,12 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
+  // Healthcheck route for Railway at the root (outside /api prefix)
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/', (req, res) => {
+    res.status(200).send('Echo Emotional Support Server is Running');
+  });
+
   // Global exception filter — consistent JSON errors
   app.useGlobalFilters(new GlobalExceptionFilter());
 
@@ -34,7 +40,7 @@ async function bootstrap() {
     }),
   );
 
-  // API prefix
+  // API prefix for all other routes
   app.setGlobalPrefix('api');
 
   // Swagger API Documentation
@@ -53,7 +59,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   const logger = new Logger('Bootstrap');
-  logger.log(`🚀 Echo server running on http://localhost:${port}`);
+  logger.log(`🚀 Echo server running on http://0.0.0.0:${port}`);
   logger.log(`🔌 WebSocket gateway active (Path: /socket.io)`);
   logger.log(`🔒 AES-256 encryption enabled`);
   logger.log(`🌐 CORS enabled for all origins (debug mode)`);
