@@ -40,8 +40,8 @@ async function bootstrap() {
     }),
   );
 
-  // API prefix for all other routes
-  app.setGlobalPrefix('api');
+  // API prefix for all other routes, excluding healthcheck root
+  app.setGlobalPrefix('api', { exclude: ['/'] });
 
   // Swagger API Documentation
   if (process.env.NODE_ENV !== 'production') {
