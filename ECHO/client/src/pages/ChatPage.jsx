@@ -48,6 +48,8 @@ export default function ChatPage() {
 
   // Socket event listeners
   useEffect(() => {
+    connectSocket(); // Connect as soon as page loads
+
     const onWaiting = (data) => {
       setRoomId(data.roomId);
       setStep('waiting');
@@ -93,13 +95,22 @@ export default function ChatPage() {
     };
   }, []);
 
-  // Auto-scroll messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
-
   const requestChat = () => {
-    connectSocket();
+    if (!socket.connected) {
+      console.log('Socket not connected, trying to connect...');
+      connectSocket();
+      // Wait for connect event once
+      socket.once('connect', () => {
+        socket.emit('chat:request', {
+          nickname,
+          mood,
+          topic,
+          sessionId: sessionId.current,
+        });
+      });
+      return;
+    }
+
     socket.emit('chat:request', {
       nickname,
       mood,

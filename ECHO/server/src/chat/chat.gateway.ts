@@ -79,29 +79,37 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody()
     data: { nickname: string; mood: string; topic: string; sessionId: string },
   ) {
-    const room = await this.chatService.createRoom(
-      data.nickname,
-      data.mood,
-      data.topic || 'general',
-      data.sessionId,
-    );
+    console.log(`[GATEWAY] Received chat:request from ${data.nickname} (Session: ${data.sessionId})`);
+    try {
+      const room = await this.chatService.createRoom(
+        data.nickname,
+        data.mood,
+        data.topic || 'general',
+        data.sessionId,
+      );
 
-    // Add to queue
-    this.chatService.addToQueue(room.id, client.id, data.mood, data.nickname);
+      // Add to queue
+      this.chatService.addToQueue(room.id, client.id, data.mood, data.nickname);
 
-    // Join the socket room
-    client.join(room.id);
-    this.socketRoomMap.set(client.id, room.id);
+      // Join the socket room
+      client.join(room.id);
+      this.socketRoomMap.set(client.id, room.id);
 
-    // Notify the teenager
-    client.emit('chat:waiting', { roomId: room.id });
+      // Notify the teenager
+      client.emit('chat:waiting', { roomId: room.id });
+      console.log(`[GATEWAY] Room ${room.id} created and client notified.`);
 
-    // Notify all volunteers that queue updated
-    this.server
-      .to('volunteers')
-      .emit('queue:updated', this.chatService.getQueue());
+      // Notify all volunteers that queue updated
+      this.server
+        .to('volunteers')
+        .emit('queue:updated', this.chatService.getQueue());
 
-    return { roomId: room.id };
+      return { roomId: room.id };
+    } catch (error) {
+      console.error('[GATEWAY] Error handling chat request:', error);
+      client.emit('error', { message: 'Failed to create chat room' });
+      return { error: 'Internal server error' };
+    }
   }
 
   /**
