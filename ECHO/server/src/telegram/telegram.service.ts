@@ -45,7 +45,16 @@ export class TelegramService implements OnModuleInit {
     if (adminIdEnv) {
       this.adminTelegramId = parseInt(adminIdEnv, 10);
     }
-    this.volunteerGroupId = process.env.VOLUNTEER_GROUP_ID || null;
+    const groupEnv = process.env.VOLUNTEER_GROUP_ID;
+    if (groupEnv) {
+      // Clean quotes and spaces that might be present in environment variables
+      let cleanId = groupEnv.trim().replace(/['"]/g, '');
+      // Ensure it starts with - if it looks like a group ID but lacks the minus
+      if (cleanId && !cleanId.startsWith('-') && cleanId.length > 5) {
+          cleanId = '-' + cleanId;
+      }
+      this.volunteerGroupId = cleanId;
+    }
     console.log(`[TELEGRAM] Admin ID: ${this.adminTelegramId}`);
     console.log(`[TELEGRAM] Volunteer Group ID: ${this.volunteerGroupId}`);
   }
