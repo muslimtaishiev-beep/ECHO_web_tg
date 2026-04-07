@@ -1067,9 +1067,12 @@ export class TelegramService implements OnModuleInit {
 
     for (const v of volunteers) {
       try {
-        await this.bot.telegram.sendMessage(Number(v.telegramId), message, inlineKeyboardMarkup);
+        await this.bot.telegram.sendMessage(Number(v.telegramId), message, {
+          parse_mode: 'HTML',
+          ...markup,
+        });
       } catch (err) {
-        console.error(`Failed to notify volunteer ${v.username}:`, err);
+        console.error(`[TELEGRAM] Failed to notify volunteer ${v.username}:`, err.message);
       }
     }
   }
