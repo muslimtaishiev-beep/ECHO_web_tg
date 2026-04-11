@@ -25,10 +25,14 @@ const playNotificationSound = () => {
 };
 
 export default function VolunteerPage() {
-  const [view, setView] = useState('login'); // login | register | dashboard | chatting
+  const [view, setView] = useState('login'); // login | register | dashboard | chatting | pending
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [telegramId, setTelegramId] = useState('');
   const [error, setError] = useState('');
   const [token, setToken] = useState(localStorage.getItem('echo_volunteer_token') || '');
   const [volunteer, setVolunteer] = useState(null);
@@ -143,25 +147,42 @@ export default function VolunteerPage() {
       setVolunteer(data.volunteer);
       setView('dashboard');
       initSocket(data.volunteer.id);
-      toast.success(`Добро пожаловать, ${data.volunteer.displayName}!`);
+      toast.success(`Добро пожаловать, ${data.volunteer.displayName}! 👋`);
     } catch (e) {
-      setError(e.message);
-      toast.error(e.message || 'Ошибка входа');
+      const msg = e.message || 'Ошибка входа';
+      // Handle pending approval case
+      if (msg.toLowerCase().includes('pending') || msg.toLowerCase().includes('approval')) {
+        setView('pending');
+      } else {
+        setError(msg);
+        toast.error(msg);
+      }
     }
   };
 
   const handleRegister = async () => {
+    if (!username || !password || !displayName || !firstName || !lastName || !phone) {
+      setError('Пожалуйста, заполните все обязательные поля.');
+      return;
+    }
     try {
       setError('');
-      const data = await api.register(username, password, displayName);
-      localStorage.setItem('echo_volunteer_token', data.access_token);
-      setToken(data.access_token);
-      setVolunteer(data.volunteer);
-      setView('dashboard');
-      initSocket(data.volunteer.id);
-      toast.success('Регистрация успешна!');
+      const data = await api.register(username, password, displayName, firstName, lastName, phone, telegramId);
+      // If server returns no token, volunteer needs approval
+      if (!data.access_token) {
+        setVolunteer(data.volunteer);
+        setView('pending');
+        toast.success('Заявка отправлена! Ожидайте подтверждения. ✨');
+      } else {
+        localStorage.setItem('echo_volunteer_token', data.access_token);
+        setToken(data.access_token);
+        setVolunteer(data.volunteer);
+        setView('dashboard');
+        initSocket(data.volunteer.id);
+        toast.success('Регистрация успешна! 🎉');
+      }
     } catch (e) {
-      setError(e.message);
+      setError(e.message || 'Ошибка регистрации');
       toast.error(e.message || 'Ошибка регистрации');
     }
   };
@@ -232,54 +253,127 @@ export default function VolunteerPage() {
 
   const moodEmojis = { great: '✨', calm: '🌿', tired: '☁️', sad: '😔', hard: '🌧️' };
 
+  // ─── PENDING APPROVAL ───
+  if (view === 'pending') {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center space-y-6 animate-fadeUp">
+          <div className="w-24 h-24 rounded-full bg-secondary-container/50 flex items-center justify-center mx-auto shadow-lg">
+            <span className="text-5xl">⏳</span>
+          </div>
+          <div className="space-y-3">
+            <h2 className="font-headline text-3xl font-extrabold text-on-surface">Заявка отправлена! 🎉</h2>
+            <p className="text-on-surface-variant font-body text-base leading-relaxed">
+              Ваша заявка на регистрацию волонтёра успешно получена.<br />
+              Администратор рассмотрит её и уведомит вас в Telegram.
+            </p>
+          </div>
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-5 text-left space-y-2">
+            <p className="text-xs font-headline font-bold uppercase tracking-widest text-secondary">Что дальше?</p>
+            <ul className="space-y-2 text-sm text-on-surface-variant font-body">
+              <li>📱 Ожидайте сообщения в Telegram от бота</li>
+              <li>✅ После подтверждения вы сможете войти</li>
+              <li>🔑 Войдите, используя свой логин и пароль</li>
+            </ul>
+          </div>
+          <button
+            onClick={() => { setView('login'); setError(''); }}
+            className="w-full py-4 rounded-full font-headline font-bold text-base bg-gradient-to-br from-secondary to-secondary-container text-on-secondary-container shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            🔑 Войти после подтверждения
+          </button>
+          <button onClick={() => navigate('/')} className="block mx-auto text-sm text-on-surface-variant hover:text-primary transition-colors font-body">
+            ← На главную
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ─── LOGIN / REGISTER ───
   if (view === 'login' || view === 'register') {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center px-4">
-        <div className="max-w-md w-full space-y-8 animate-fadeUp">
+        <div className="max-w-md w-full space-y-6 animate-fadeUp">
           <div className="text-center space-y-3">
             <div className="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mx-auto">
               <span className="material-symbols-outlined msf text-on-secondary-container text-3xl">volunteer_activism</span>
             </div>
             <h2 className="font-headline text-3xl font-extrabold text-on-surface">
-              {view === 'login' ? 'Вход для волонтёра' : 'Регистрация волонтёра'}
+              {view === 'login' ? '👋 Вход для волонтёра' : '🤝 Регистрация волонтёра'}
             </h2>
+            {view === 'register' && (
+              <p className="text-sm text-on-surface-variant font-body">Заполните все поля — администратор рассмотрит вашу заявку</p>
+            )}
           </div>
 
           {error && (
-            <div className="px-4 py-3 rounded-xl bg-error/10 text-error text-sm font-body">{error}</div>
+            <div className="px-4 py-3 rounded-xl bg-error/10 text-error text-sm font-body border border-error/20">⚠️ {error}</div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Логин"
+              placeholder="🔑 Логин"
               className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
             />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Пароль"
+              placeholder="🔒 Пароль"
               className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
               onKeyDown={(e) => e.key === 'Enter' && (view === 'login' ? handleLogin() : handleRegister())}
             />
             {view === 'register' && (
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Имя для отображения (например: Алия)"
-                className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
-              />
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="👤 Фамилия"
+                    className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="👋 Имя"
+                    className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="🏷️ Имя для отображения (например: Алия)"
+                  className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
+                />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="📞 Телефон (+7...)"
+                  className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
+                />
+                <input
+                  type="text"
+                  value={telegramId}
+                  onChange={(e) => setTelegramId(e.target.value)}
+                  placeholder="🆔 Ваш Telegram ID (числовой)"
+                  className="w-full px-5 py-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body focus:outline-none focus:ring-2 focus:ring-secondary-container focus:border-secondary transition-all"
+                />
+                <p className="text-xs text-on-surface-variant/70 font-body px-1">💡 Telegram ID можно узнать у бота @userinfobot</p>
+              </>
             )}
             <button
               onClick={view === 'login' ? handleLogin : handleRegister}
               className="w-full py-4 rounded-full font-headline font-bold text-base bg-gradient-to-br from-secondary to-secondary-container text-on-secondary-container shadow-lg shadow-secondary/20 hover:scale-[1.02] active:scale-95 transition-all"
             >
-              {view === 'login' ? 'Войти' : 'Зарегистрироваться'}
+              {view === 'login' ? '🚀 Войти' : '✉️ Отправить заявку'}
             </button>
           </div>
 
@@ -288,7 +382,7 @@ export default function VolunteerPage() {
               onClick={() => { setView(view === 'login' ? 'register' : 'login'); setError(''); }}
               className="text-sm text-on-surface-variant hover:text-secondary transition-colors font-body"
             >
-              {view === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
+              {view === 'login' ? 'Нет аккаунта? Зарегистрироваться →' : '← Уже есть аккаунт? Войти'}
             </button>
           </div>
 

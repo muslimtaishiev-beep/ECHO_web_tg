@@ -3,7 +3,9 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,6 +22,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ─────────────────────────────────────────────
@@ -59,18 +62,24 @@ export class AuthService {
       },
     });
 
-    const token = this.jwtService.sign({
-      sub: volunteer.id,
+    this.eventEmitter.emit('volunteer.registered', {
+      id: volunteer.id,
       username: volunteer.username,
-      role: 'volunteer',
+      displayName: volunteer.displayName,
+      firstName: volunteer.firstName,
+      lastName: volunteer.lastName,
+      phone: volunteer.phone,
+      telegramId: volunteer.telegramId ? volunteer.telegramId.toString() : null,
     });
 
+    // Do NOT issue access_token for unverified volunteers
     return {
-      access_token: token,
+      access_token: null,
       volunteer: {
         id: volunteer.id,
         username: volunteer.username,
         displayName: volunteer.displayName,
+        isVerified: volunteer.isVerified,
       },
     };
   }
@@ -89,10 +98,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.prisma.volunteer.update({
-      where: { id: volunteer.id },
-      data: { isOnline: true },
-    });
+    if (!volunteer.isVerified) {
+      throw new ForbiddenException('Your account is pending admin approval.');
+    }
 
     const token = this.jwtService.sign({
       sub: volunteer.id,
@@ -106,6 +114,7 @@ export class AuthService {
         id: volunteer.id,
         username: volunteer.username,
         displayName: volunteer.displayName,
+        isVerified: volunteer.isVerified,
       },
     };
   }

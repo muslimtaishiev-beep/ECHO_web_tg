@@ -1221,4 +1221,112 @@ export class TelegramService implements OnModuleInit {
         : `🌐 Ваш веб-аккаунт:\n\n👤 Никнейм: ${linkedUser.nickname}\n${specialIdLine}\n✅ Подтверждён: ${linkedUser.isApproved ? 'Да' : 'Нет'}\n\nПерейдите на сайт Echo и войдите с вашим никнеймом и паролем.`,
     );
   }
+
+  // ─────────────────────────────────────────────
+  // VOLUNTEER APPROVAL FLOW
+  // ─────────────────────────────────────────────
+
+  @OnEvent('volunteer.registered')
+  async handleVolunteerRegistration(payload: any) {
+    const { username, displayName, firstName, lastName, phone, telegramId } = payload;
+    
+    const message = `
+✨ <b>Новая регистрация волонтёра!</b>
+
+👤 <b>ФИО:</b> ${this.escapeHTML(lastName || '-')} ${this.escapeHTML(firstName || '-')}
+📝 <b>Никнейм:</b> ${this.escapeHTML(username)}
+🏷️ <b>Отображаемое имя:</b> ${this.escapeHTML(displayName)}
+📞 <b>Телефон:</b> <code>${this.escapeHTML(phone || '-')}</code>
+🆔 <b>TG ID:</b> <code>${telegramId || '-'}</code>
+${telegramId ? `🔗 <a href="tg://user?id=${telegramId}">Открыть профиль</a>` : ''}
+
+✅ Чтобы подтвердить: <code>/v_approve ${username}</code>
+❌ Чтобы отклонить: <code>/v_reject ${username}</code>
+    `.trim();
+
+    if (this.adminTelegramId) {
+      await this.bot.telegram.sendMessage(this.adminTelegramId, message, { parse_mode: 'HTML' });
+    }
+    if (this.volunteerGroupId) {
+      await this.bot.telegram.sendMessage(this.volunteerGroupId, message, { parse_mode: 'HTML' });
+    }
+  }
+
+  @Command('v_pending')
+  async listPendingVolunteers(ctx: Context) {
+    const tgUser = ctx.from;
+    if (!tgUser) return;
+
+    // Check if user is admin
+    const botUser = await this.prisma.botUser.findUnique({ where: { telegramId: BigInt(tgUser.id) } });
+    if (!botUser?.isAdmin && tgUser.id !== this.adminTelegramId) return;
+
+    const pending = await this.prisma.volunteer.findMany({
+      where: { isVerified: false },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (pending.length === 0) {
+      return ctx.reply('✨ Нет волонтёров, ожидающих подтверждения.');
+    }
+
+    let report = '⏳ <b>Ожидают подтверждения:</b>\n\n';
+    pending.forEach((v, i) => {
+      report += `${i + 1}. <b>${this.escapeHTML(v.username)}</b> (${this.escapeHTML(v.lastName || '')} ${this.escapeHTML(v.firstName || '')})\n`;
+      report += `   — <code>/v_approve ${v.username}</code>\n\n`;
+    });
+
+    await ctx.reply(report, { parse_mode: 'HTML' });
+  }
+
+  @Command('v_approve')
+  async approveVolunteer(ctx: Context) {
+    const tgUser = ctx.from;
+    const msgText = (ctx.message as any)?.text || '';
+    const parts = msgText.trim().split(/\s+/);
+    
+    if (parts.length < 2) {
+      return ctx.reply('⚠️ Использование: /v_approve <username>');
+    }
+
+    const username = parts[1];
+
+    // Check if user is admin
+    const botUser = await this.prisma.botUser.findUnique({ where: { telegramId: BigInt(tgUser.id) } });
+    if (!botUser?.isAdmin && tgUser.id !== this.adminTelegramId) return;
+
+    try {
+      const updated = await this.prisma.volunteer.update({
+        where: { username },
+        data: { isVerified: true },
+      });
+      await ctx.reply(`✅ Волонтёр <b>${this.escapeHTML(updated.username)}</b> успешно подтверждён!`, { parse_mode: 'HTML' });
+    } catch (err) {
+      await ctx.reply(`❌ Ошибка: Волонтёр "${username}" не найден.`);
+    }
+  }
+
+  @Command('v_reject')
+  async rejectVolunteer(ctx: Context) {
+    const tgUser = ctx.from;
+    const msgText = (ctx.message as any)?.text || '';
+    const parts = msgText.trim().split(/\s+/);
+    
+    if (parts.length < 2) {
+      return ctx.reply('⚠️ Использование: /v_reject <username>');
+    }
+
+    const username = parts[1];
+
+    // Check if user is admin
+    const botUser = await this.prisma.botUser.findUnique({ where: { telegramId: BigInt(tgUser.id) } });
+    if (!botUser?.isAdmin && tgUser.id !== this.adminTelegramId) return;
+
+    try {
+      await this.prisma.volunteer.delete({ where: { username } });
+      await ctx.reply(`🗑️ Регистрация волонтёра <b>${this.escapeHTML(username)}</b> была отклонена и удалена.`, { parse_mode: 'HTML' });
+    } catch (err) {
+      await ctx.reply(`❌ Ошибка: Волонтёр "${username}" не найден.`);
+    }
+  }
 }
