@@ -1,0 +1,508 @@
+﻿
+ECHO
+Платформа анонимной психологической помощи подросткам
+Техническое задание (ТЗ)  ·  v2.0  ·  NestJS Edition
+
+Проект
+ECHO — онлайн-платформа
+
+Версия ТЗ
+2.0 (пересмотрен)
+
+Технологический стек
+NestJS (TypeScript) + PostgreSQL + Redis
+
+Срок разработки
+14–16 недель
+
+Репозиторий
+github.com/hamzaK228/ECHO
+
+
+
+1. Введение
+1.1. Цель проекта
+Разработать веб-платформу для предоставления анонимной психологической помощи подросткам. Платформа обеспечивает конфиденциальность пользователей, интеграцию чата в реальном времени, регистрацию пользователей и волонтёров, а также административный функционал с ролевой моделью доступа (RBAC).
+
+1.2. Обоснование выбора NestJS вместо Spring Boot
+Оригинальное ТЗ предполагало Java/Spring Boot. После анализа готового фронтенда (React + Vite, TypeScript/JavaScript) принято решение перейти на NestJS по следующим причинам:
+
+Единая экосистема — TypeScript используется и на фронте, и на бэке. Типы, DTO и интерфейсы можно шарить через общие пакеты.
+Нативная поддержка WebSocket — NestJS Gateway + Socket.io из коробки, без дополнительной настройки Spring WebSocket.
+Скорость разработки — npm-экосистема, знакомые инструменты, единый репозиторий (monorepo).
+Архитектурная схожесть — NestJS использует те же паттерны: модули, DI-контейнер, декораторы, guards (аналог Spring Security Filters).
+Производительность — Node.js с кластеризацией и Socket.io Redis adapter покрывает 1000+ одновременных пользователей.
+
+1.3. Технологический стек
+
+Слой
+Технология
+Назначение
+
+Фронтенд
+React + Vite (JS)
+Готов. Адаптируется под новый API
+
+API Framework
+NestJS 10 (TypeScript)
+REST API, WebSocket Gateway, RBAC
+
+API Gateway
+Nginx
+SSL, rate limiting, reverse proxy
+
+База данных
+PostgreSQL 16
+Основное хранилище, шифрованные PII
+
+ORM
+TypeORM + @nestjs/typeorm
+Entities, migrations, relations
+
+Cache / Sessions
+Redis 7
+Socket.io adapter, rate limit, sessions
+
+Аутентификация
+Passport.js + JWT (@nestjs/jwt)
+Access + Refresh токены
+
+2FA
+otplib (TOTP)
+Google Authenticator для админов
+
+Шифрование
+Node.js crypto (AES-256-GCM)
+Шифрование PII-полей в БД
+
+Секреты
+HashiCorp Vault
+Ключи шифрования, env-секреты
+
+Валидация
+class-validator + class-transformer
+DTO-валидация, pipe-guards
+
+Безопасность
+Helmet + CSRF + ThrottlerGuard
+XSS, CSRF, SQL-injection защита
+
+WebSocket
+Socket.io + @nestjs/websockets
+Real-time чат, анонимные комнаты
+
+Документация
+Swagger (@nestjs/swagger)
+OpenAPI 3.0, автогенерация
+
+Логирование
+Winston + nest-winston
+Анонимные логи, audit trail
+
+Мониторинг
+Prometheus + Grafana
+Метрики CPU, трафик, ошибки
+
+Контейнеры
+Docker + Docker Compose
+Dev-окружение, изоляция сервисов
+
+Оркестрация
+Kubernetes (K8s)
+Prod-деплой, автоскейлинг
+
+CI/CD
+GitHub Actions
+Build, test, deploy на staging/prod
+
+Тестирование
+Jest + Supertest + JMeter
+Unit, E2E, нагрузочное тестирование
+
+
+1.4. Общие требования
+Анонимность: все пользовательские данные (включая чаты) шифруются на сервере (AES-256-GCM). Доступ к расшифрованным данным только через защищённую админ-панель с RBAC. IP-адреса маскируются в логах.
+Дизайн: полное соответствие готовому макету (Figma/PNG). Сайт адаптивен (responsive) для мобильных устройств.
+Безопасность: соответствие GDPR, защита от SQL-инъекций (TypeORM parameterized queries), XSS (Helmet CSP), CSRF (@nestjs/csrf). Регулярное сканирование уязвимостей.
+Производительность: поддержка до 1000 одновременных пользователей, время отклика API < 200 мс, Socket.io с Redis adapter для горизонтального масштабирования.
+
+1.5. Этапы разработки
+Анализ и проектирование — 2 недели. Финализация ТЗ, ERD-схема, Swagger-контракт, дизайн-макет.
+Разработка — 8–10 недель. Фронтенд и бэкенд параллельно, с еженедельной синхронизацией через API-контракт.
+Интеграция и тестирование — 3 недели. E2E, нагрузочные тесты (JMeter), security audit.
+Деплой и мониторинг — 1 неделя. Kubernetes-деплой, настройка Prometheus/Grafana, Go-live.
+
+1.6. Структура команды
+Frontend-разработчик: React + Vite, Socket.io-client, адаптация к REST API.
+Backend-разработчик: NestJS, TypeORM, Socket.io Gateway, безопасность.
+DevOps-инженер: Docker, Kubernetes, GitHub Actions, Nginx, мониторинг.
+
+2. Фронтенд-разработка
+2.1. Обязанности
+Реализовать UI/UX на основе предоставленного дизайн-макета (все страницы, компоненты, стили).
+Обеспечить анонимность: нет сбора личных данных без согласия; формы регистрации без обязательных ПИИ.
+Интеграция с бэкендом через REST API (Axios) и WebSocket (Socket.io-client).
+Хранение JWT Access/Refresh токенов в httpOnly cookie (не localStorage).
+
+2.2. Ключевые страницы и функции
+Главная страница
+Баннер с описанием платформы, кнопка анонимного входа в чат.
+FAQ-секция. Кнопка «Написать волонтёру» открывает выбор темы.
+Регистрация / Логин
+Пользователи (подростки): анонимная регистрация (никнейм обязателен, email — опционально). Без реальных ФИО.
+Волонтёры / персонал: расширенная форма, верификация через админ-панель.
+Сброс пароля по email (анонимный flow, без раскрытия личности).
+Чат-модуль
+Real-time чат через Socket.io-client. Подключение к анонимной комнате по теме.
+Функции: отправка текста, эмодзи; отображение статуса онлайн/оффлайн волонтёра.
+История чатов — только для текущей сессии (зашифрована на клиенте через SubtleCrypto).
+Пользовательский профиль
+Минимальный: изменение ника, список завершённых чатов (без содержимого по умолчанию).
+Админ-панель
+Дашборд: статистика (количество пользователей, чатов, волонтёров) — анонимно.
+Управление пользователями: поиск по ID/нику, блокировка аккаунтов, просмотр истории (с расшифровкой через бэкенд).
+Управление волонтёрами: добавление/удаление, назначение ролей.
+Журнал аудита: действия администраторов с timestamp.
+Экспорт данных: CSV/JSON с шифрованием (только для суперадмина).
+
+2.3. Технические требования
+Фреймворк: React 18 + Vite (текущий стек, без изменений).
+Стили: CSS/SCSS, следование макету (цвета, шрифты, отступы). Tailwind CSS — опционально.
+Состояние: Zustand или React Query для серверного состояния (кеширование API).
+WebSocket: Socket.io-client 4.x, переподключение при разрыве, анонимный handshake.
+Тестирование: Jest + React Testing Library (unit), Cypress (E2E).
+Доступность: WCAG 2.1 AA — альт-тексты, клавиатурная навигация, контрастность.
+
+2.4. Доставляемые артефакты
+Исходный код в Git (ветки: main, develop, feature/*).
+Прототип на локальном / staging-сервере.
+Отчёт по тестированию UI и доступности.
+
+3. Бэкенд-разработка (NestJS)
+3.1. Обязанности
+Разработка RESTful API на NestJS 10 (TypeScript).
+Реализация WebSocket Gateway (Socket.io) для real-time чата.
+CRUD-операции для всех сущностей: пользователи, чаты, волонтёры, логи.
+Шифрование PII-данных: хранение в БД в зашифрованном виде (AES-256-GCM), расшифровка только для авторизованных администраторов.
+Реализация RBAC: роли Admin, Superadmin, Volunteer, User.
+
+3.2. Структура проекта (NestJS Monorepo)
+Ниже приведена рекомендуемая структура папок:
+
+Путь
+Описание
+
+src/modules/auth/
+Аутентификация: JWT, Passport, 2FA
+
+src/modules/users/
+CRUD пользователей, шифрование PII
+
+src/modules/volunteers/
+Управление волонтёрами, роли
+
+src/modules/chat/
+REST-эндпоинты чата + Socket.io Gateway
+
+src/modules/admin/
+Дашборд, поиск, экспорт, аудит
+
+src/common/guards/
+JwtAuthGuard, RolesGuard, ThrottlerGuard
+
+src/common/interceptors/
+LoggingInterceptor, CryptoInterceptor
+
+src/common/crypto/
+AES-256-GCM утилиты шифрования
+
+src/config/
+TypeORM, Redis, Vault конфигурация
+
+src/database/migrations/
+TypeORM миграции
+
+test/
+E2E тесты (Supertest)
+
+docker/
+Dockerfile для бэкенда и БД
+
+k8s/
+Kubernetes manifests
+
+.github/workflows/
+GitHub Actions CI/CD
+
+
+3.3. Модели данных (Entities)
+User
+id: UUID (primary key)
+nickname: string (AES-256-GCM зашифрован)
+email: string | null (AES-256-GCM зашифрован, опционально)
+passwordHash: string (bcrypt, 12 раундов)
+role: enum (USER | VOLUNTEER | ADMIN | SUPERADMIN)
+isBlocked: boolean
+createdAt: timestamp
+Chat
+id: UUID
+userId: UUID (анонимный, без JOIN на публичный профиль)
+volunteerId: UUID | null
+topic: string
+status: enum (WAITING | ACTIVE | CLOSED)
+createdAt: timestamp
+Message
+id: UUID
+chatId: UUID
+senderId: UUID
+content: string (AES-256-GCM зашифровано)
+createdAt: timestamp
+AdminLog
+id: UUID
+adminId: UUID
+action: string (что сделано)
+targetId: UUID | null (на кого направлено)
+createdAt: timestamp
+
+3.4. API-эндпоинты
+
+Метод
+Эндпоинт
+Роль
+Описание
+
+POST
+/auth/register
+PUBLIC
+Регистрация пользователя
+
+POST
+/auth/login
+PUBLIC
+Логин, выдача JWT
+
+POST
+/auth/admin/login
+ADMIN
+Логин с 2FA (TOTP)
+
+POST
+/auth/refresh
+USER+
+Обновление Access токена
+
+POST
+/auth/logout
+USER+
+Инвалидация refresh-токена
+
+GET
+/users
+ADMIN
+Список пользователей (анонимно)
+
+GET
+/users/:id
+ADMIN
+Данные пользователя (расшифровка)
+
+PUT
+/users/:id/block
+ADMIN
+Блокировка аккаунта
+
+DELETE
+/users/:id
+SUPERADMIN
+Удаление пользователя
+
+POST
+/volunteers
+ADMIN
+Добавление волонтёра
+
+GET
+/volunteers
+ADMIN
+Список волонтёров
+
+PUT
+/volunteers/:id/role
+ADMIN
+Назначение роли
+
+DELETE
+/volunteers/:id
+ADMIN
+Удаление волонтёра
+
+POST
+/chat/start
+USER
+Начало нового чата
+
+GET
+/chat/:id/history
+USER|ADMIN
+История сообщений
+
+POST
+/chat/:id/message
+USER|VOL
+Отправка сообщения
+
+PUT
+/chat/:id/close
+USER|VOL
+Закрытие чата
+
+GET
+/admin/stats
+ADMIN
+Статистика платформы
+
+GET
+/admin/search
+ADMIN
+Поиск по дате, теме, ID
+
+GET
+/admin/export
+SUPERADMIN
+Экспорт данных CSV/JSON
+
+GET
+/admin/logs
+ADMIN
+Журнал действий админов
+
+
+3.5. WebSocket Gateway (Socket.io)
+Namespace: /chat
+Events (client → server): join_room, send_message, leave_room, typing.
+Events (server → client): message, user_joined, user_left, volunteer_assigned, error.
+Аутентификация: JWT в handshake query (?token=...), проверка через JwtAuthGuard.
+Redis Adapter: @socket.io/redis-adapter для горизонтального масштабирования на K8s.
+Rate limiting: 100 сообщений/мин на пользователя через ThrottlerGuard.
+
+3.6. Безопасность
+AES-256-GCM: все PII-поля (nickname, email, content) шифруются в TypeORM @BeforeInsert/@BeforeUpdate трансформерах.
+Ключи шифрования: хранятся в HashiCorp Vault, загружаются при старте через @nestjs/config + Vault SDK.
+JWT: Access Token (15 мин), Refresh Token (7 дней, httpOnly cookie). Ротация при каждом обновлении.
+Helmet: настройка CSP, X-Frame-Options, HSTS.
+RBAC: кастомный @Roles() декоратор + RolesGuard на всех защищённых маршрутах.
+SQL-инъекции: TypeORM использует параметризованные запросы. Raw SQL запрещён.
+Логи: IP-адреса маскируются (заменяются на хеш). Аудит-лог в AdminLog entity.
+
+3.7. Технические требования
+Node.js 20 LTS, NestJS 10.x, TypeScript 5.x.
+TypeORM 0.3.x + PostgreSQL 16. Только type-safe запросы.
+@nestjs/swagger — OpenAPI 3.0 документация, доступна на /api/docs.
+Winston для структурированного логирования (JSON-формат, без PII).
+Тестирование: Jest (unit, coverage > 80%), Supertest (E2E), JMeter (нагрузка).
+
+3.8. Доставляемые артефакты
+Исходный код в Git (ветки: main, develop, feature/*).
+Docker-образы для API, PostgreSQL, Redis.
+Swagger-документация (OpenAPI 3.0).
+Отчёт о безопасности (результаты сканирования уязвимостей).
+Отчёт о покрытии тестами (Jest coverage report).
+
+4. DevOps-разработка
+4.1. Обязанности
+Настройка инфраструктуры для деплоя, масштабирования и мониторинга.
+Обеспечение CI/CD для автоматизации сборки, тестирования и деплоя.
+
+4.2. Инфраструктура
+Контейнеризация
+Docker Compose для dev-окружения (frontend, backend, postgres, redis, vault).
+Отдельные Dockerfile для фронтенда (Nginx + статика) и бэкенда (Node.js 20 Alpine).
+Мультистейдж-сборки для минимизации размера образов.
+Kubernetes (Production)
+Namespace: echo-prod, echo-staging.
+Deployments: frontend, backend, postgres (StatefulSet), redis.
+HorizontalPodAutoscaler: backend min=2, max=10 pods, CPU > 70%.
+Secrets: Kubernetes Secrets + HashiCorp Vault Injector (sidecar).
+Ingress: Nginx Ingress Controller, SSL через cert-manager + Let's Encrypt.
+
+4.3. CI/CD (GitHub Actions)
+Событие
+Pipeline
+Действия
+
+Push в feature/*
+Build & Lint
+npm ci, eslint, tsc --noEmit
+
+PR в develop
+Test & Security
+Jest, Supertest, npm audit, SAST
+
+Merge в develop
+Deploy Staging
+Docker build, push, kubectl apply
+
+Merge в main
+Deploy Production
+Smoke tests, K8s rolling update
+
+
+4.4. Мониторинг и безопасность
+Prometheus: сбор метрик из NestJS (@willsoto/nestjs-prometheus), Nginx, PostgreSQL exporter.
+Grafana: дашборды — CPU/RAM, RPS, latency p95, активные WebSocket-соединения, ошибки 4xx/5xx.
+Winston → stdout → Fluentd → Elasticsearch → Kibana (ELK Stack).
+Алерты: PagerDuty/Slack при ошибках > 1% или latency > 500 мс.
+Бэкапы: ежедневный pg_dump с шифрованием, хранение в S3 (30 дней).
+Firewall: открыты только порты 80, 443. PostgreSQL и Redis — только внутри кластера.
+
+4.5. Технические требования
+IaC: Terraform для provisioning облака (AWS EKS или GCP GKE).
+Секреты: HashiCorp Vault, Vault Agent Sidecar Injector.
+Нагрузочное тестирование: JMeter, сценарий 1000 одновременных WebSocket-соединений.
+SSL: Let's Encrypt через cert-manager, автообновление.
+
+4.6. Доставляемые артефакты
+Скрипты деплоя (Docker Compose + K8s manifests + Terraform конфигурация).
+Дашборд мониторинга Grafana (JSON-экспорт).
+Руководство по деплою и обслуживанию.
+Результаты нагрузочного тестирования JMeter.
+
+5. Нефункциональные требования
+5.1. Производительность
+Параметр
+Целевое значение
+
+Одновременных пользователей
+1000+
+
+Время отклика API (p95)
+< 200 мс
+
+Время отклика WebSocket (p95)
+< 50 мс
+
+Uptime
+99.9%
+
+Размер образа Docker (backend)
+< 150 MB
+
+Покрытие тестами
+> 80%
+
+
+5.2. Безопасность
+OWASP Top 10: защита от всех уязвимостей из списка.
+Шифрование в покое: AES-256-GCM для всех PII-полей в БД.
+Шифрование в транзите: TLS 1.3 на всех соединениях.
+Пентест: обязателен перед Go-Live (внешний аудит или автоматизированный SAST/DAST).
+GDPR: право на удаление данных (DELETE /users/:id), право на экспорт (GET /admin/export).
+
+5.3. Масштабируемость
+Горизонтальное масштабирование бэкенда через K8s HPA.
+Socket.io с Redis Adapter — поддержка multi-instance без потери соединений.
+CDN: статические файлы фронтенда через CloudFront/Cloudflare.
+Database connection pooling: pgBouncer перед PostgreSQL.
+
+ECHO Platform · ТЗ v2.0 · NestJS Edition · Конец документа
+

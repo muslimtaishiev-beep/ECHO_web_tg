@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+logs
+test_out.txt
+clean_log.txt
+deep_test.js

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ECHO — Админ-панель</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#785500","primary-container": "#fec24a","on-primary-container": "#5a3f00",
+        "on-primary": "#fff1de","secondary": "#34654e","secondary-container": "#baeed1",
+        "on-secondary-container": "#2a5b45","tertiary": "#924529","tertiary-container": "#f99774",
+        "on-tertiary-container": "#5a1c03","surface": "#fdf6e3","surface-container-lowest": "#ffffff",
+        "surface-container-low": "#f8f0dc","surface-container": "#efe8d2","surface-container-high": "#eae2cb",
+        "surface-container-highest": "#e4ddc5","on-surface": "#322f22","on-surface-variant": "#5f5b4d",
+        "outline-variant": "#b2ad9c","error": "#b02500","on-error": "#ffefec","error-container":"#f95630",
+      },
+      fontFamily: { headline: ["Plus Jakarta Sans","sans-serif"], body: ["Be Vietnam Pro","sans-serif"] },
+      borderRadius: { DEFAULT:"1rem", lg:"2rem", xl:"3rem", full:"9999px" },
+    }
+  }
+}
+</script>
+<style>
+  .msf { font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; display:inline-block; }
+  body { font-family:'Be Vietnam Pro',sans-serif; background:#fdf6e3; color:#322f22; }
+  .glass { background:rgba(253,246,227,0.65); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+  .sidebar { transition: transform 0.3s cubic-bezier(.4,0,.2,1); }
+  .blob { position:fixed; filter:blur(80px); z-index:0; pointer-events:none; }
+  ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:#e4ddc5; border-radius:99px; }
+  .nav-link { transition: all 0.2s; }
+  .stat-ring { transform: rotate(-90deg); }
+  @keyframes countUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .count-up { animation: countUp 0.6s ease forwards; }
+  .table-row:hover { background:#f8f0dc; }
+  .badge-success { background:#baeed1; color:#2a5b45; }
+  .badge-warn { background:#fec24a44; color:#785500; }
+  .badge-error { background:#f9977433; color:#924529; }
+  #sidebar-overlay { display:none; }
+  @media(max-width:768px) {
+    #sidebar { transform: translateX(-100%); position:fixed; z-index:50; height:100dvh; }
+    #sidebar.open { transform: translateX(0); }
+    #sidebar-overlay.show { display:block; position:fixed; inset:0; background:rgba(50,47,34,0.4); z-index:40; backdrop-filter:blur(2px); }
+    #main-content { margin-left:0 !important; }
+  }
+</style>
+</head>
+<body class="min-h-screen overflow-x-hidden">
+
+<!-- bg blobs -->
+<div class="blob w-[500px] h-[500px] bg-secondary-container/15 -top-20 -right-20 rounded-full"></div>
+<div class="blob w-[400px] h-[400px] bg-tertiary-container/10 bottom-0 left-0 rounded-full"></div>
+
+<!-- Sidebar overlay (mobile) -->
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside id="sidebar" class="sidebar fixed left-0 top-0 h-screen w-64 bg-amber-50 flex flex-col z-50 shadow-xl shadow-amber-900/10 rounded-r-xl md:rounded-r-[3rem]">
+  <div class="p-6 pb-4">
+    <div class="flex items-center gap-2 mb-6">
+      <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
+        <span class="material-symbols-outlined msf text-on-primary-container text-sm">self_improvement</span>
+      </div>
+      <span class="font-headline font-extrabold text-lg text-on-surface tracking-tight">ECHO</span>
+      <button class="ml-auto md:hidden p-1 rounded-full hover:bg-amber-100" onclick="closeSidebar()">
+        <span class="material-symbols-outlined text-on-surface-variant text-xl">close</span>
+      </button>
+    </div>
+    <!-- Admin profile -->
+    <div class="flex items-center gap-3 p-3 bg-surface-container rounded-xl">
+      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary-container font-headline font-bold text-sm flex-shrink-0">АД</div>
+      <div class="min-w-0">
+        <p class="font-headline font-bold text-on-surface text-sm truncate">Администратор</p>
+        <p class="text-xs text-on-surface-variant truncate">ID: #88291-SEC</p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full bg-gradient-to-br from-amber-200 to-amber-300 text-on-surface font-headline font-bold text-sm">
+      <span class="material-symbols-outlined msf text-primary">dashboard</span> Дашборд
+    </a>
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant font-headline font-medium text-sm hover:bg-amber-100">
+      <span class="material-symbols-outlined">chat_bubble</span> Переписки
+      <span class="ml-auto text-[10px] font-bold bg-error text-on-error px-2 py-0.5 rounded-full">12</span>
+    </a>
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant font-headline font-medium text-sm hover:bg-amber-100">
+      <span class="material-symbols-outlined">group</span> Волонтёры
+    </a>
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant font-headline font-medium text-sm hover:bg-amber-100">
+      <span class="material-symbols-outlined">manage_accounts</span> Пользователи
+    </a>
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant font-headline font-medium text-sm hover:bg-amber-100">
+      <span class="material-symbols-outlined">library_books</span> Ресурсы
+    </a>
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant font-headline font-medium text-sm hover:bg-amber-100">
+      <span class="material-symbols-outlined">bar_chart</span> Аналитика
+    </a>
+    <a href="#" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant font-headline font-medium text-sm hover:bg-amber-100">
+      <span class="material-symbols-outlined">settings</span> Настройки
+    </a>
+  </nav>
+
+  <div class="p-4 m-3 bg-secondary-container/30 rounded-xl">
+    <div class="flex items-center gap-2 mb-2">
+      <div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+      <p class="text-xs font-headline font-bold text-on-secondary-container uppercase tracking-widest">AES-256 активен</p>
+    </div>
+    <p class="text-xs text-on-surface-variant">Шифрование работает в штатном режиме</p>
+  </div>
+
+  <div class="p-4">
+    <button class="w-full py-3 rounded-full bg-error/10 text-error font-headline font-bold text-sm hover:bg-error/20 transition-all flex items-center justify-center gap-2">
+      <span class="material-symbols-outlined text-base">logout</span> Выйти
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div id="main-content" class="md:ml-64 min-h-screen flex flex-col">
+
+  <!-- Top bar -->
+  <header class="glass sticky top-0 z-30 px-4 md:px-8 py-4 flex items-center gap-4 border-b border-amber-200/20">
+    <button class="md:hidden p-2 rounded-full hover:bg-amber-100" onclick="openSidebar()">
+      <span class="material-symbols-outlined text-on-surface">menu</span>
+    </button>
+    <div class="flex-1">
+      <h1 class="font-headline font-extrabold text-lg md:text-2xl text-on-surface">Панель управления</h1>
+      <p class="text-xs text-on-surface-variant hidden md:block">Мониторинг и безопасность платформы в реальном времени</p>
+    </div>
+    <div class="hidden md:flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full">
+      <div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+      <span class="text-xs font-headline font-bold text-on-secondary-container uppercase tracking-widest">Система: Оптимально</span>
+    </div>
+    <button class="relative p-2 rounded-full hover:bg-amber-100">
+      <span class="material-symbols-outlined text-on-surface">notifications</span>
+      <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error"></span>
+    </button>
+    <button class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary-container font-headline font-bold text-sm">АД</button>
+  </header>
+
+  <!-- Content -->
+  <main class="flex-1 p-4 md:p-8 space-y-6 relative z-10">
+
+    <!-- METRIC CARDS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-sm count-up">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-full bg-primary-container/30 flex items-center justify-center">
+            <span class="material-symbols-outlined msf text-primary text-lg">chat_bubble</span>
+          </div>
+          <span class="text-[10px] font-headline font-bold text-secondary uppercase tracking-widest bg-secondary-container/40 px-2 py-0.5 rounded-full">+18%</span>
+        </div>
+        <p class="font-headline font-extrabold text-2xl md:text-3xl text-on-surface">1 204</p>
+        <p class="text-xs text-on-surface-variant mt-1">Активных сессий</p>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-sm count-up" style="animation-delay:0.1s">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-full bg-secondary-container/50 flex items-center justify-center">
+            <span class="material-symbols-outlined msf text-secondary text-lg">volunteer_activism</span>
+          </div>
+          <span class="text-[10px] font-headline font-bold text-secondary uppercase tracking-widest bg-secondary-container/40 px-2 py-0.5 rounded-full">Онлайн</span>
+        </div>
+        <p class="font-headline font-extrabold text-2xl md:text-3xl text-on-surface">47</p>
+        <p class="text-xs text-on-surface-variant mt-1">Волонтёров сейчас</p>
+      </div>
+      <div class="bg-primary rounded-xl p-5 md:p-6 shadow-sm shadow-primary/20 count-up" style="animation-delay:0.2s">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+            <span class="material-symbols-outlined msf text-on-primary text-lg">verified_user</span>
+          </div>
+          <span class="text-[10px] font-headline font-bold text-on-primary/70 uppercase tracking-widest">24ч</span>
+        </div>
+        <p class="font-headline font-extrabold text-2xl md:text-3xl text-on-primary">0</p>
+        <p class="text-xs text-on-primary/70 mt-1">Угроз заблокировано</p>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl p-5 md:p-6 shadow-sm count-up" style="animation-delay:0.3s">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-full bg-tertiary-container/40 flex items-center justify-center">
+            <span class="material-symbols-outlined msf text-tertiary text-lg">people</span>
+          </div>
+          <span class="text-[10px] font-headline font-bold text-on-surface-variant uppercase tracking-widest">Сегодня</span>
+        </div>
+        <p class="font-headline font-extrabold text-2xl md:text-3xl text-on-surface">2 847</p>
+        <p class="text-xs text-on-surface-variant mt-1">Новых пользователей</p>
+      </div>
+    </div>
+
+    <!-- ROW 2: Ring chart + Active volunteers -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Encryption ring -->
+      <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col items-center text-center">
+        <p class="font-headline font-bold text-on-surface mb-4">Целостность шифрования</p>
+        <div class="relative w-32 h-32 flex items-center justify-center mb-4">
+          <svg class="w-full h-full stat-ring" viewBox="0 0 128 128">
+            <circle cx="64" cy="64" r="54" fill="none" stroke="#efe8d2" stroke-width="10"/>
+            <circle cx="64" cy="64" r="54" fill="none" stroke="#fec24a" stroke-width="10"
+              stroke-dasharray="339.3" stroke-dashoffset="0.34" stroke-linecap="round"/>
+          </svg>
+          <div class="absolute flex flex-col items-center">
+            <span class="font-headline font-extrabold text-2xl text-primary">99.9%</span>
+            <span class="text-[10px] uppercase font-bold text-on-surface-variant">Активно</span>
+          </div>
+        </div>
+        <p class="text-xs text-on-surface-variant leading-relaxed">Сквозное шифрование AES-256 работает в штатном режиме</p>
+        <div class="mt-4 flex items-center gap-2 px-3 py-1.5 bg-secondary-container/30 rounded-full">
+          <div class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></div>
+          <span class="text-xs font-headline font-bold text-on-secondary-container">SSL обновлён</span>
+        </div>
+      </div>
+
+      <!-- Volunteers online -->
+      <div class="md:col-span-2 bg-surface-container rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-headline font-bold text-on-surface">Волонтёры сейчас</h2>
+          <button class="text-xs font-headline font-bold text-primary hover:underline">Все →</button>
+        </div>
+        <div class="space-y-3">
+          <!-- Vol 1 -->
+          <div class="flex items-center gap-3 p-3 bg-surface-container-lowest rounded-xl hover:shadow-sm transition-all">
+            <div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center font-headline font-bold text-on-secondary-container text-sm flex-shrink-0">АЛ</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-headline font-bold text-sm text-on-surface truncate">Алия Нурланова</p>
+              <p class="text-xs text-on-surface-variant">Ведёт 3 чата · Рейтинг 4.9</p>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <div class="w-2 h-2 rounded-full bg-secondary"></div>
+              <span class="text-xs font-bold text-secondary">Онлайн</span>
+            </div>
+          </div>
+          <!-- Vol 2 -->
+          <div class="flex items-center gap-3 p-3 bg-surface-container-lowest rounded-xl hover:shadow-sm transition-all">
+            <div class="w-10 h-10 rounded-full bg-primary-container/50 flex items-center justify-center font-headline font-bold text-on-primary-container text-sm flex-shrink-0">ДА</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-headline font-bold text-sm text-on-surface truncate">Дамир Асанов</p>
+              <p class="text-xs text-on-surface-variant">Ведёт 1 чат · Рейтинг 4.7</p>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <div class="w-2 h-2 rounded-full bg-secondary"></div>
+              <span class="text-xs font-bold text-secondary">Онлайн</span>
+            </div>
+          </div>
+          <!-- Vol 3 -->
+          <div class="flex items-center gap-3 p-3 bg-surface-container-lowest rounded-xl hover:shadow-sm transition-all">
+            <div class="w-10 h-10 rounded-full bg-tertiary-container/40 flex items-center justify-center font-headline font-bold text-tertiary text-sm flex-shrink-0">ЗА</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-headline font-bold text-sm text-on-surface truncate">Зарина Акматова</p>
+              <p class="text-xs text-on-surface-variant">Ведёт 2 чата · Рейтинг 5.0</p>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <div class="w-2 h-2 rounded-full bg-secondary"></div>
+              <span class="text-xs font-bold text-secondary">Онлайн</span>
+            </div>
+          </div>
+          <!-- Vol 4 offline -->
+          <div class="flex items-center gap-3 p-3 bg-surface-container-lowest rounded-xl opacity-60">
+            <div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center font-headline font-bold text-on-surface-variant text-sm flex-shrink-0">МА</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-headline font-bold text-sm text-on-surface truncate">Мадина Айтбаева</p>
+              <p class="text-xs text-on-surface-variant">Ждёт очереди · Рейтинг 4.8</p>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+              <span class="text-xs font-bold text-on-surface-variant">Пауза</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Chart + Crisis alerts -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Bar chart -->
+      <div class="md:col-span-2 bg-surface-container-high rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="font-headline font-bold text-on-surface">Активность за неделю</h2>
+            <p class="text-xs text-on-surface-variant">Количество чатов по дням</p>
+          </div>
+          <div class="flex gap-3 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-primary-container inline-block"></span>Чаты</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-tertiary-container/60 inline-block"></span>Кризис</span>
+          </div>
+        </div>
+        <div class="flex items-end justify-between gap-2 md:gap-4 h-36 md:h-48">
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-primary-container/40 hover:bg-primary-container transition-all cursor-pointer" style="height:40%"></div>
+            <span class="text-[10px] text-on-surface-variant font-medium">Пн</span>
+          </div>
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-primary-container/60 hover:bg-primary-container transition-all cursor-pointer" style="height:60%"></div>
+            <span class="text-[10px] text-on-surface-variant font-medium">Вт</span>
+          </div>
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-tertiary-container/70 hover:bg-tertiary-container transition-all cursor-pointer" style="height:85%"></div>
+            <span class="text-[10px] text-on-surface-variant font-medium">Ср</span>
+          </div>
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-primary-container/80 hover:bg-primary-container transition-all cursor-pointer" style="height:70%"></div>
+            <span class="text-[10px] text-on-surface-variant font-medium">Чт</span>
+          </div>
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-tertiary-container/50 hover:bg-tertiary-container transition-all cursor-pointer" style="height:45%"></div>
+            <span class="text-[10px] text-on-surface-variant font-medium">Пт</span>
+          </div>
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-primary-container hover:brightness-105 transition-all cursor-pointer" style="height:100%"></div>
+            <span class="text-[10px] font-bold text-primary font-headline">Сб</span>
+          </div>
+          <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="w-full rounded-t-lg bg-primary-container/30 hover:bg-primary-container transition-all cursor-pointer" style="height:25%"></div>
+            <span class="text-[10px] text-on-surface-variant font-medium">Вс</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crisis / alerts -->
+      <div class="bg-tertiary-container/20 rounded-xl p-6 flex flex-col gap-4">
+        <h2 class="font-headline font-bold text-on-surface">Срочные сигналы</h2>
+        <div class="p-4 bg-surface-container-lowest rounded-xl flex items-start gap-3">
+          <div class="w-8 h-8 rounded-full bg-error/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="material-symbols-outlined msf text-error text-base">warning</span>
+          </div>
+          <div>
+            <p class="font-headline font-bold text-sm text-on-surface">Пользователь #X94</p>
+            <p class="text-xs text-on-surface-variant mt-0.5">Признаки кризисного состояния · 2 мин назад</p>
+            <button class="mt-2 text-xs font-headline font-bold text-error hover:underline">Подключить специалиста →</button>
+          </div>
+        </div>
+        <div class="p-4 bg-surface-container-lowest rounded-xl flex items-start gap-3">
+          <div class="w-8 h-8 rounded-full bg-primary-container/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="material-symbols-outlined msf text-primary text-base">info</span>
+          </div>
+          <div>
+            <p class="font-headline font-bold text-sm text-on-surface">Новый волонтёр</p>
+            <p class="text-xs text-on-surface-variant mt-0.5">Садыкова Г. ждёт верификации</p>
+            <button class="mt-2 text-xs font-headline font-bold text-primary hover:underline">Проверить →</button>
+          </div>
+        </div>
+        <button class="mt-auto w-full py-3 bg-error text-on-error rounded-full font-headline font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-error/20">
+          <span class="material-symbols-outlined msf text-base">emergency</span>
+          Кризисный протокол
+        </button>
+      </div>
+    </div>
+
+    <!-- AUDIT TABLE -->
+    <div class="bg-surface-container rounded-xl p-4 md:p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="font-headline font-bold text-on-surface">Журнал аудита</h2>
+        <button class="flex items-center gap-2 text-xs font-headline font-bold text-on-surface-variant hover:text-primary transition-colors">
+          <span class="material-symbols-outlined text-base">filter_list</span>
+          <span class="hidden md:inline">Фильтр</span>
+        </button>
+      </div>
+      <div class="overflow-x-auto -mx-2 md:mx-0">
+        <table class="w-full text-left min-w-[500px]">
+          <thead>
+            <tr class="text-[10px] uppercase tracking-widest text-on-surface-variant">
+              <th class="pb-3 pl-2 font-bold">Время</th>
+              <th class="pb-3 font-bold">Событие</th>
+              <th class="pb-3 hidden md:table-cell font-bold">Источник</th>
+              <th class="pb-3 font-bold">Статус</th>
+              <th class="pb-3 text-right pr-2 font-bold">Верификация</th>
+            </tr>
+          </thead>
+          <tbody class="text-sm">
+            <tr class="table-row transition-colors rounded-xl">
+              <td class="py-3 pl-2 font-medium text-on-surface whitespace-nowrap">14:22:10</td>
+              <td class="py-3 font-headline font-bold text-on-surface">Расшифровка БД</td>
+              <td class="py-3 text-on-surface-variant hidden md:table-cell">Admin_S_882</td>
+              <td class="py-3"><span class="badge-success px-2 py-0.5 rounded text-[10px] font-bold">OK</span></td>
+              <td class="py-3 text-right pr-2"><span class="material-symbols-outlined msf text-secondary text-base">verified</span></td>
+            </tr>
+            <tr class="table-row transition-colors">
+              <td class="py-3 pl-2 font-medium text-on-surface whitespace-nowrap">14:15:33</td>
+              <td class="py-3 font-headline font-bold text-on-surface">Обновление SSL</td>
+              <td class="py-3 text-on-surface-variant hidden md:table-cell">Automated_Sys</td>
+              <td class="py-3"><span class="badge-success px-2 py-0.5 rounded text-[10px] font-bold">OK</span></td>
+              <td class="py-3 text-right pr-2"><span class="material-symbols-outlined msf text-secondary text-base">verified</span></td>
+            </tr>
+            <tr class="table-row transition-colors">
+              <td class="py-3 pl-2 font-medium text-on-surface whitespace-nowrap">13:58:01</td>
+              <td class="py-3 font-headline font-bold text-on-surface">Новый защищённый туннель</td>
+              <td class="py-3 text-on-surface-variant hidden md:table-cell">User_Node_X92</td>
+              <td class="py-3"><span class="badge-success px-2 py-0.5 rounded text-[10px] font-bold">OK</span></td>
+              <td class="py-3 text-right pr-2"><span class="material-symbols-outlined msf text-secondary text-base">verified</span></td>
+            </tr>
+            <tr class="table-row transition-colors">
+              <td class="py-3 pl-2 font-medium text-on-surface whitespace-nowrap">13:45:12</td>
+              <td class="py-3 font-headline font-bold text-on-surface">Синхронизация ресурсов</td>
+              <td class="py-3 text-on-surface-variant hidden md:table-cell">Content_Mgr</td>
+              <td class="py-3"><span class="badge-warn px-2 py-0.5 rounded text-[10px] font-bold">Предупр.</span></td>
+              <td class="py-3 text-right pr-2"><span class="material-symbols-outlined msf text-primary text-base">pending</span></td>
+            </tr>
+            <tr class="table-row transition-colors">
+              <td class="py-3 pl-2 font-medium text-on-surface whitespace-nowrap">13:20:05</td>
+              <td class="py-3 font-headline font-bold text-on-surface">Попытка входа</td>
+              <td class="py-3 text-on-surface-variant hidden md:table-cell">Unknown_IP</td>
+              <td class="py-3"><span class="badge-error px-2 py-0.5 rounded text-[10px] font-bold">Блок</span></td>
+              <td class="py-3 text-right pr-2"><span class="material-symbols-outlined msf text-error text-base">gpp_bad</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="px-4 md:px-8 py-6 flex flex-col md:flex-row justify-between items-center gap-3 border-t border-amber-200/20">
+    <p class="text-xs text-on-surface-variant font-body">© 2025 <span class="font-bold text-on-surface">ECHO</span>. Твоя безопасность — наш приоритет.</p>
+    <div class="flex gap-5">
+      <a href="#" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Экстренная помощь</a>
+      <a href="#" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Политика</a>
+      <a href="#" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Шифрование</a>
+    </div>
+  </footer>
+</div>
+
+<!-- Mobile bottom nav -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-30 glass border-t border-amber-200/20 flex justify-around items-center py-3 px-2">
+  <a href="#" class="flex flex-col items-center gap-1 text-primary">
+    <span class="material-symbols-outlined msf text-xl">dashboard</span>
+    <span class="text-[9px] font-headline font-bold">Дашборд</span>
+  </a>
+  <a href="#" class="flex flex-col items-center gap-1 text-on-surface-variant">
+    <span class="material-symbols-outlined text-xl">chat_bubble</span>
+    <span class="text-[9px] font-headline font-bold">Чаты</span>
+  </a>
+  <a href="#" class="flex flex-col items-center gap-1 text-on-surface-variant">
+    <span class="material-symbols-outlined text-xl">group</span>
+    <span class="text-[9px] font-headline font-bold">Люди</span>
+  </a>
+  <a href="#" class="flex flex-col items-center gap-1 text-on-surface-variant">
+    <span class="material-symbols-outlined text-xl">bar_chart</span>
+    <span class="text-[9px] font-headline font-bold">Аналитика</span>
+  </a>
+  <a href="#" class="flex flex-col items-center gap-1 text-on-surface-variant">
+    <span class="material-symbols-outlined text-xl">settings</span>
+    <span class="text-[9px] font-headline font-bold">Настройки</span>
+  </a>
+</nav>
+
+<script>
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+</script>
+</body>
+</html>
