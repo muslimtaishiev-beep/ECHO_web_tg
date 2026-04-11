@@ -39,6 +39,12 @@ export class AuthController {
     return this.authService.loginUser(dto);
   }
 
+  /** Login for Telegram-linked users using nickname + password (set via /password bot command) */
+  @Post('user/login-by-nickname')
+  loginUserByNickname(@Body() dto: { nickname: string; password: string }) {
+    return this.authService.loginUserByNickname(dto.nickname, dto.password);
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   getProfile(@Request() req) {

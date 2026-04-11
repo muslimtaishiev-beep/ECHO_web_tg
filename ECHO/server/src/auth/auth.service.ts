@@ -2,11 +2,18 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterVolunteerDto, LoginVolunteerDto, RegisterUserDto, LoginUserDto, CheckStatusDto } from './dto/auth.dto';
+import {
+  RegisterVolunteerDto,
+  LoginVolunteerDto,
+  RegisterUserDto,
+  LoginUserDto,
+  CheckStatusDto,
+} from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -15,18 +22,21 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // ─────────────────────────────────────────────
+  // VOLUNTEER AUTH
+  // ─────────────────────────────────────────────
+
   async register(dto: RegisterVolunteerDto) {
     const existing = await this.prisma.volunteer.findUnique({
       where: { username: dto.username },
     });
-
     if (existing) {
       throw new ConflictException('Username already taken');
     }
 
     if (dto.email) {
       const existingEmail = await this.prisma.volunteer.findUnique({
-        where: { email: dto.email }
+        where: { email: dto.email },
       });
       if (existingEmail) {
         throw new ConflictException('Email already taken');
@@ -74,15 +84,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const passwordValid = await bcrypt.compare(
-      dto.password,
-      volunteer.passwordHash,
-    );
+    const passwordValid = await bcrypt.compare(dto.password, volunteer.passwordHash);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Mark online
     await this.prisma.volunteer.update({
       where: { id: volunteer.id },
       data: { isOnline: true },
@@ -105,16 +111,17 @@ export class AuthService {
   }
 
   async validateVolunteer(payload: { sub: string }) {
-    return this.prisma.volunteer.findUnique({
-      where: { id: payload.sub },
-    });
+    return this.prisma.volunteer.findUnique({ where: { id: payload.sub } });
   }
+
+  // ─────────────────────────────────────────────
+  // USER (TEENAGER) AUTH
+  // ─────────────────────────────────────────────
 
   async registerUser(dto: RegisterUserDto) {
     const existing = await this.prisma.user.findUnique({
       where: { nickname: dto.nickname },
     });
-
     if (existing) {
       throw new ConflictException('Nickname already taken');
     }
@@ -125,11 +132,10 @@ export class AuthService {
       data: {
         nickname: dto.nickname,
         passwordHash,
-        isApproved: false, // Default to not approved for teenagers
+        isApproved: false,
       },
     });
 
-    // Provide token or just response, since they shouldn't login until approved
     return {
       message: 'Registration pending approval. Please check status later.',
       user: {
@@ -149,10 +155,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const passwordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
+    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -173,14 +176,11 @@ export class AuthService {
       where: { specialId: dto.specialId },
     });
 
-    if (!user || (!user.isApproved)) {
+    if (!user || !user.isApproved) {
       throw new UnauthorizedException('Invalid ID or account pending approval');
     }
 
-    const passwordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
+    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -198,6 +198,92 @@ export class AuthService {
         id: user.id,
         nickname: user.nickname,
         specialId: user.specialId,
+      },
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // TELEGRAM ↔ WEB ACCOUNT LINKING
+  // ─────────────────────────────────────────────
+
+  /**
+   * Called from TelegramService when a user sets a password (/password command).
+   * Creates or updates a User record linked to the given telegramId.
+   */
+  async linkTelegramToUser(telegramId: bigint, nickname: string, password: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Check if a User with this telegramId already exists
+    const existingByTg = await this.prisma.user.findUnique({
+      where: { telegramId },
+    });
+
+    if (existingByTg) {
+      // Update the password
+      await this.prisma.user.update({
+        where: { telegramId },
+        data: { passwordHash },
+      });
+      return;
+    }
+
+    // Check if the nickname is taken by another (non-linked) user
+    const existingByNick = await this.prisma.user.findUnique({
+      where: { nickname },
+    });
+
+    if (existingByNick && existingByNick.telegramId !== null) {
+      throw new ConflictException('Nickname already taken by another user');
+    }
+
+    if (existingByNick) {
+      // Link telegram to the existing nickname account
+      await this.prisma.user.update({
+        where: { nickname },
+        data: { telegramId, passwordHash },
+      });
+    } else {
+      // Create a brand new user linked to this Telegram account
+      await this.prisma.user.create({
+        data: {
+          nickname,
+          passwordHash,
+          telegramId,
+          isApproved: true, // Telegram users are auto-approved
+        },
+      });
+    }
+  }
+
+  /**
+   * Allows a Telegram-linked user to log in via the web using their nickname + password.
+   */
+  async loginUserByNickname(nickname: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { nickname } });
+
+    if (!user || !user.isApproved) {
+      throw new UnauthorizedException('Account not found or pending approval');
+    }
+
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const token = this.jwtService.sign({
+      sub: user.id,
+      nickname: user.nickname,
+      specialId: user.specialId,
+      role: 'user',
+    });
+
+    return {
+      access_token: token,
+      user: {
+        id: user.id,
+        nickname: user.nickname,
+        specialId: user.specialId,
+        telegramLinked: user.telegramId !== null,
       },
     };
   }

@@ -49,6 +49,7 @@ model User {
   nickname     String   @unique
   passwordHash String
   isApproved   Boolean  @default(false)
+  telegramId   BigInt?  @unique // Link to Telegram account
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

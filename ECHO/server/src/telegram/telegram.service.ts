@@ -14,6 +14,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from '../common/encryption.service';
 import { ChatService } from '../chat/chat.service';
+import { AuthService } from '../auth/auth.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { i18n } from './i18n';
 
@@ -39,6 +40,7 @@ export class TelegramService implements OnModuleInit {
     private prisma: PrismaService,
     private encryption: EncryptionService,
     private chatService: ChatService,
+    private authService: AuthService,
     private eventEmitter: EventEmitter2,
   ) {
     const adminIdEnv = process.env.ADMIN_TELEGRAM_ID;
@@ -1123,5 +1125,100 @@ export class TelegramService implements OnModuleInit {
         payload.content,
       );
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // ACCOUNT LINKING — /password & /id
+  // ─────────────────────────────────────────────
+
+  /**
+   * /password <nickname> <password>
+   * Creates or updates the user's web login credentials.
+   * After this, they can log into the web app using their nickname + password.
+   */
+  @Command('password')
+  async onSetPassword(ctx: Context) {
+    const tgUser = ctx.from;
+    if (!tgUser) return;
+
+    const botUser = await this.prisma.botUser.findUnique({
+      where: { telegramId: BigInt(tgUser.id) },
+    });
+    const lang = this.getLang(botUser?.language);
+
+    // Parse args from message text
+    const msgText = (ctx.message as any)?.text || '';
+    const parts = msgText.trim().split(/\s+/);
+    // parts[0] = '/password', parts[1] = nickname, parts[2] = password
+
+    if (parts.length < 3) {
+      return ctx.reply(
+        lang === 'en'
+          ? '⚠️ Usage: /password <nickname> <password>\nExample: /password MyCoolNick mySecret123'
+          : '⚠️ Использование: /password <никнейм> <пароль>\nПример: /password МойНик мойПароль123',
+      );
+    }
+
+    const nickname = parts[1];
+    const password = parts[2];
+
+    if (password.length < 6) {
+      return ctx.reply(
+        lang === 'en'
+          ? '⚠️ Password must be at least 6 characters long.'
+          : '⚠️ Пароль должен быть не менее 6 символов.',
+      );
+    }
+
+    try {
+      await this.authService.linkTelegramToUser(BigInt(tgUser.id), nickname, password);
+      await ctx.reply(
+        lang === 'en'
+          ? `✅ Your web account has been set up!\n\n🔑 Nickname: ${nickname}\nYou can now log in to the Echo web platform using this nickname and password.`
+          : `✅ Ваш веб-аккаунт настроен!\n\n🔑 Никнейм: ${nickname}\nТеперь вы можете войти на сайт Echo с этим никнеймом и паролем.`,
+      );
+    } catch (err: any) {
+      await ctx.reply(
+        lang === 'en'
+          ? `❌ Error: ${err.message || 'Could not set password. Please try a different nickname.'}`
+          : `❌ Ошибка: ${err.message || 'Не удалось установить пароль. Попробуйте другой никнейм.'}`,
+      );
+    }
+  }
+
+  /**
+   * /id — Shows the user their linked web account info.
+   */
+  @Command('id')
+  async onShowId(ctx: Context) {
+    const tgUser = ctx.from;
+    if (!tgUser) return;
+
+    const botUser = await this.prisma.botUser.findUnique({
+      where: { telegramId: BigInt(tgUser.id) },
+    });
+    const lang = this.getLang(botUser?.language);
+
+    const linkedUser = await this.prisma.user.findUnique({
+      where: { telegramId: BigInt(tgUser.id) },
+    });
+
+    if (!linkedUser) {
+      return ctx.reply(
+        lang === 'en'
+          ? '🔗 You have no web account linked yet.\nUse /password <nickname> <password> to create one.'
+          : '🔗 У вас пока нет привязанного веб-аккаунта.\nИспользуйте /password <никнейм> <пароль> для создания.',
+      );
+    }
+
+    const specialIdLine = linkedUser.specialId
+      ? (lang === 'en' ? `🆔 Special ID: ${linkedUser.specialId}` : `🆔 Специальный ID: ${linkedUser.specialId}`)
+      : (lang === 'en' ? '🆔 Special ID: (not yet assigned by admin)' : '🆔 Специальный ID: (ещё не назначен администратором)');
+
+    await ctx.reply(
+      lang === 'en'
+        ? `🌐 Your Web Account:\n\n👤 Nickname: ${linkedUser.nickname}\n${specialIdLine}\n✅ Approved: ${linkedUser.isApproved ? 'Yes' : 'No'}\n\nGo to the Echo website and log in with your nickname and the password you set.`
+        : `🌐 Ваш веб-аккаунт:\n\n👤 Никнейм: ${linkedUser.nickname}\n${specialIdLine}\n✅ Подтверждён: ${linkedUser.isApproved ? 'Да' : 'Нет'}\n\nПерейдите на сайт Echo и войдите с вашим никнеймом и паролем.`,
+    );
   }
 }
