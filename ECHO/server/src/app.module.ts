@@ -21,7 +21,7 @@ import { AdminModule } from './admin/admin.module';
     ...(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '1234567890:test_token_dummy_xyz123'
       ? [
           TelegrafModule.forRoot({
-            token: process.env.TELEGRAM_BOT_TOKEN,
+            token: process.env.TELEGRAM_BOT_TOKEN!,
             launchOptions: {
               dropPendingUpdates: true,
             },
