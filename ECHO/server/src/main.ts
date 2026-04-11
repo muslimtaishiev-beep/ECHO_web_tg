@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/global-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import helmet from 'helmet';
 
 async function bootstrap() {
@@ -16,6 +17,9 @@ async function bootstrap() {
   // Security headers
   app.use(helmet());
 
+  // WebSocket adapter for Socket.io
+  app.useWebSocketAdapter(new IoAdapter(app));
+
   // CORS — configurable via env
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
@@ -24,7 +28,19 @@ async function bootstrap() {
         'http://localhost:3000',
         'https://echo-web-tg.vercel.app',
       ];
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  
+  app.enableCors({ 
+    origin: corsOrigins, 
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+  });
+
+  // Healthcheck route for Railway at the root (outside /api prefix)
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/', (req, res) => {
+    res.status(200).send('Echo Emotional Support Server is Running');
+  });
 
   // Global exception filter — consistent JSON errors
   app.useGlobalFilters(new GlobalExceptionFilter());
@@ -38,8 +54,8 @@ async function bootstrap() {
     }),
   );
 
-  // API prefix
-  app.setGlobalPrefix('api');
+  // API prefix for all other routes, excluding healthcheck root
+  app.setGlobalPrefix('api', { exclude: ['/'] });
 
   // Swagger API Documentation
   if (process.env.NODE_ENV !== 'production') {
@@ -57,12 +73,13 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   const logger = new Logger('Bootstrap');
-  logger.log(`🚀 Echo server running on http://localhost:${port}`);
-  logger.log(`🔌 WebSocket gateway active`);
+  logger.log(`🚀 Echo server running on http://0.0.0.0:${port}`);
+  logger.log(`🔌 WebSocket gateway active (Path: /socket.io)`);
   logger.log(`🔒 AES-256 encryption enabled`);
   logger.log(`🌐 CORS origins: ${corsOrigins.join(', ')}`);
+  
   if (process.env.NODE_ENV !== 'production') {
-    logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
+    logger.log(`📚 Swagger docs: http://0.0.0.0:${port}/api/docs`);
   }
 }
 bootstrap();
