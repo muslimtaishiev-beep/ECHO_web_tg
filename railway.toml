@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd ECHO/server && npm install && npx prisma generate && npm run build"
+
+[deploy]
+startCommand = "cd ECHO/server && npm run start:prod"
