@@ -41,7 +41,8 @@ export default function ChatPage() {
   const typingTimeoutRef = useRef(null);
   const navigate = useNavigate();
 
-  const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+  const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const API_URL = (rawApiUrl.startsWith('http') ? rawApiUrl : 'https://' + rawApiUrl) + '/api';
 
   useEffect(() => {
     if (step === 'dashboard') {

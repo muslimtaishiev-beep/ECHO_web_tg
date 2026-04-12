@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = (rawApiUrl.startsWith('http') ? rawApiUrl : 'https://' + rawApiUrl) + '/api';
 
 export default function StatusPage() {
   const [formData, setFormData] = useState({ nickname: '', password: '' });

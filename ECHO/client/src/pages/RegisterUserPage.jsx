@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useNavigate, Link } from 'react-router-dom';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = (rawApiUrl.startsWith('http') ? rawApiUrl : 'https://' + rawApiUrl) + '/api';
 
 export default function RegisterUserPage() {
   const [formData, setFormData] = useState({ nickname: '', password: '', role: 'user' });
