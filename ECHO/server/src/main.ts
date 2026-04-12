@@ -7,6 +7,11 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import helmet from 'helmet';
 
 async function bootstrap() {
+  // Patch BigInt serialization to prevent JSON.stringify errors when returning Prisma results containing BigInts
+  (BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+  };
+
   const app = await NestFactory.create(AppModule, {
     logger:
       process.env.NODE_ENV === 'production'
