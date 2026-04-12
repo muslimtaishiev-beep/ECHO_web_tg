@@ -1282,6 +1282,7 @@ ${telegramId ? `🔗 <a href="tg://user?id=${telegramId}">Открыть про�
   @Command('v_approve')
   async approveVolunteer(ctx: Context) {
     const tgUser = ctx.from;
+    if (!tgUser) return;
     const msgText = (ctx.message as any)?.text || '';
     const parts = msgText.trim().split(/\s+/);
     
@@ -1309,6 +1310,7 @@ ${telegramId ? `🔗 <a href="tg://user?id=${telegramId}">Открыть про�
   @Command('v_reject')
   async rejectVolunteer(ctx: Context) {
     const tgUser = ctx.from;
+    if (!tgUser) return;
     const msgText = (ctx.message as any)?.text || '';
     const parts = msgText.trim().split(/\s+/);
     
