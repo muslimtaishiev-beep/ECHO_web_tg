@@ -81,6 +81,12 @@ export class TelegramService implements OnModuleInit {
       .then(me => {
         this.botId = me.id;
         console.log(`🤖 [TELEGRAM] Bot [@${me.username}] is ONLINE and ready.`);
+        
+        // Launch bot polling in background to prevent Railway SIGTERM crash 
+        // due to app.listen() blocking during application bootstrap
+        this.bot.launch({ dropPendingUpdates: true }).catch(err => {
+          console.error('❌ [TELEGRAM] Bot launch failed:', err);
+        });
       })
       .catch(err => {
         console.error('❌ [TELEGRAM] Bot failed to connect to Telegram API!');

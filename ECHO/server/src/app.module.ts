@@ -26,9 +26,7 @@ const validToken = [process.env.TELEGRAM_BOT_TOKEN, process.env.BOT_TOKEN].find(
       ? [
           TelegrafModule.forRoot({
             token: validToken,
-            launchOptions: {
-              dropPendingUpdates: true,
-            },
+            launchOptions: false,
           }),
           TelegramModule,
         ]
