@@ -82,16 +82,30 @@ export class TelegramService implements OnModuleInit {
         this.botId = me.id;
         console.log(`🤖 [TELEGRAM] Bot [@${me.username}] is ONLINE and ready.`);
         
-        // Launch bot polling in background to prevent Railway SIGTERM crash 
-        // due to app.listen() blocking during application bootstrap
-        this.bot.launch({ dropPendingUpdates: true }).catch(err => {
-          console.error('❌ [TELEGRAM] Bot launch failed:', err);
-        });
+        // Launch bot polling in background with retry logic for Railway overlapping deploys
+        const startBot = async () => {
+          let retries = 10;
+          while (retries > 0) {
+            try {
+              await this.bot.launch({ dropPendingUpdates: true });
+              break; // Successfully connected
+            } catch (err: any) {
+              if (err?.response?.error_code === 409 || err?.error_code === 409 || err?.message?.includes('409')) {
+                console.warn(`⚠️ Telegram 409 Conflict (Overlap Deploy). Retrying... (${retries} left)`);
+                await new Promise(r => setTimeout(r, 5000));
+                retries--;
+              } else {
+                console.error('❌ [TELEGRAM] Bot launch failed:', err);
+                break;
+              }
+            }
+          }
+        };
+        startBot();
       })
       .catch(err => {
         console.error('❌ [TELEGRAM] Bot failed to connect to Telegram API!');
         console.error(`Reason: ${err.message || err}`);
-        console.error('Check your internet connection and TELEGRAM_BOT_TOKEN.');
       });
   }
 
