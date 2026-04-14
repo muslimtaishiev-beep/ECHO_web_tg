@@ -283,4 +283,14 @@ export class ChatService {
       queueLength,
     };
   }
+
+  /**
+   * Check room status (used for reconnects/polling)
+   */
+  async checkRoomStatus(roomId: string) {
+    return this.prisma.chatRoom.findUnique({
+      where: { id: roomId },
+      include: { volunteer: true },
+    });
+  }
 }

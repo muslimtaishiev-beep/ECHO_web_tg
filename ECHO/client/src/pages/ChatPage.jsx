@@ -128,6 +128,19 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Robust polling fallback for network disconnects during the waiting phase
+  useEffect(() => {
+    let interval;
+    if (step === 'waiting' && roomId) {
+      interval = setInterval(() => {
+        if (socket.connected) {
+          socket.emit('chat:check_status', { roomId });
+        }
+      }, 3000); // Check every 3 seconds
+    }
+    return () => clearInterval(interval);
+  }, [step, roomId]);
+
   const requestChat = () => {
     connectSocket();
     socket.emit('chat:request', {

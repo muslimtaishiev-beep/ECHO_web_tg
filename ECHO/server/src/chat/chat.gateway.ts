@@ -202,6 +202,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Ping check from client (useful if socket reconnected during waiting phase)
+   */
+  @SubscribeMessage('chat:check_status')
+  async handleChatCheckStatus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { roomId: string },
+  ) {
+    if (!data.roomId) return;
+    
+    const room = await this.chatService.checkRoomStatus(data.roomId);
+    if (!room) return;
+
+    // Ensure socket is in the right room, in case it was a reconnection
+    client.join(data.roomId);
+    this.socketRoomMap.set(client.id, data.roomId);
+
+    if (room.status === 'active') {
+      client.emit('chat:started', {
+        roomId: room.id,
+        volunteerName: room.volunteer?.displayName || 'Волонтёр',
+      });
+    } else if (room.status === 'closed') {
+      client.emit('chat:ended', { roomId: room.id });
+    }
+  }
+
+  /**
    * Listen for events from the Telegram bridge
    */
   @OnEvent('telegram.chat_accepted')
