@@ -44,3 +44,22 @@ Start your server from the `ECHO/server` directory using your preferred command 
 
 > [!TIP]
 > **Debugging**: If messages are not being delivered between the user and volunteer, check that both have no other active chats and that the "Focus" (🎯) is correctly set on the volunteer's side (use `/chats` to verify).
+
+---
+
+## 6. Local Development Quickstart
+
+If you want to run the project locally on your machine alongside Railway:
+
+1.  **Install Dependencies**: Run `npm run install:all` in the root directory.
+2.  **Start Database**: Ensure Docker Desktop is running, then run `npm run db:up` from the root.
+3.  **Setup Environment**: 
+    *   Copy `ECHO/server/.env.example` to `ECHO/server/.env`.
+    *   Update `DATABASE_URL` in `ECHO/server/.env` to the local Docker URL provided in the comments.
+4.  **Sync Database**: Run `npm run prisma:push` to create tables in your local database.
+5.  **Start All**: Run `npm run dev` to start both the Frontend and Backend simultaneously.
+
+Your app will be available at:
+*   **Web UI**: `http://localhost:5173`
+*   **API**: `http://localhost:3000`
+

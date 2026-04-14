@@ -1,0 +1,18 @@
+{
+  "name": "echo-web-tg-root",
+  "version": "1.0.0",
+  "description": "Root orchestrator for ECHO project",
+  "scripts": {
+    "install:all": "npm install && cd ECHO/server && npm install && cd ../client && npm install",
+    "db:up": "cd ECHO/server && docker-compose up -d",
+    "db:down": "cd ECHO/server && docker-compose down",
+    "dev:server": "cd ECHO/server && npm run start:dev",
+    "dev:client": "cd ECHO/client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "prisma:generate": "cd ECHO/server && npx prisma generate",
+    "prisma:push": "cd ECHO/server && npx prisma db push"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
