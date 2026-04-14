@@ -11,6 +11,10 @@ import { ChatModule } from './chat/chat.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { AdminModule } from './admin/admin.module';
 
+const validToken = [process.env.TELEGRAM_BOT_TOKEN, process.env.BOT_TOKEN].find(
+  (t) => t && t !== '1234567890:test_token_dummy_xyz123'
+);
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -18,11 +22,10 @@ import { AdminModule } from './admin/admin.module';
       throttlers: [{ ttl: 60000, limit: 100 }],
     }),
     EventEmitterModule.forRoot(),
-    ...( (process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN) &&
-    (process.env.TELEGRAM_BOT_TOKEN !== '1234567890:test_token_dummy_xyz123' && process.env.BOT_TOKEN !== '1234567890:test_token_dummy_xyz123')
+    ...(validToken
       ? [
           TelegrafModule.forRoot({
-            token: (process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)!,
+            token: validToken,
             launchOptions: {
               dropPendingUpdates: true,
             },
