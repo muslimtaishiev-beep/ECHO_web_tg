@@ -72,13 +72,20 @@ export class TelegramService implements OnModuleInit {
 
   async onModuleInit() {
     // Initialize bot in background to not block the server port binding
+    if (!this.bot) {
+        console.error('❌ [TELEGRAM] Bot instance is NOT available. Initialization aborted.');
+        return;
+    }
+
     this.bot.telegram.getMe()
       .then(me => {
         this.botId = me.id;
-        console.log(`🤖 Telegram Bot [${me.username}] initialized.`);
+        console.log(`🤖 [TELEGRAM] Bot [@${me.username}] is ONLINE and ready.`);
       })
       .catch(err => {
-        console.error('⚠️ Telegram Bot initialization failed:', err);
+        console.error('❌ [TELEGRAM] Bot failed to connect to Telegram API!');
+        console.error(`Reason: ${err.message || err}`);
+        console.error('Check your internet connection and TELEGRAM_BOT_TOKEN.');
       });
   }
 

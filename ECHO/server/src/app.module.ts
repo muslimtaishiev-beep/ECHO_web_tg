@@ -18,17 +18,23 @@ import { AdminModule } from './admin/admin.module';
       throttlers: [{ ttl: 60000, limit: 100 }],
     }),
     EventEmitterModule.forRoot(),
-    ...(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== '1234567890:test_token_dummy_xyz123'
+    ...( (process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN) &&
+    (process.env.TELEGRAM_BOT_TOKEN !== '1234567890:test_token_dummy_xyz123' && process.env.BOT_TOKEN !== '1234567890:test_token_dummy_xyz123')
       ? [
           TelegrafModule.forRoot({
-            token: process.env.TELEGRAM_BOT_TOKEN!,
+            token: (process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)!,
             launchOptions: {
               dropPendingUpdates: true,
             },
           }),
           TelegramModule,
         ]
-      : []),
+      : (() => {
+          console.warn(
+            '⚠️ [TELEGRAM] Bot is DISABLED. Token is missing or placeholder.',
+          );
+          return [];
+        })()),
     PrismaModule,
     CommonModule,
     AuthModule,

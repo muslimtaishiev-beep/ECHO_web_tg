@@ -7,7 +7,16 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+      console.log('🟢 [DATABASE] Successfully connected to PostgreSQL.');
+    } catch (err) {
+      console.error('❌ [DATABASE] Failed to connect to PostgreSQL!');
+      console.error(`Reason: ${err.message || err}`);
+      console.error('Check your DATABASE_URL in .env');
+      // We don't exit the process here to allow the server to at least start
+      // so the user can see the error in the logs.
+    }
   }
 
   async onModuleDestroy() {
