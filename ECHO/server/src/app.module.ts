@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Injectable, ExecutionContext } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -14,6 +14,16 @@ import { AdminModule } from './admin/admin.module';
 const validToken = [process.env.TELEGRAM_BOT_TOKEN, process.env.BOT_TOKEN].find(
   (t) => t && t !== '1234567890:test_token_dummy_xyz123'
 );
+
+@Injectable()
+export class CustomThrottlerGuard extends ThrottlerGuard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (context.getType<string>() === 'telegraf') {
+      return true; // Bypass rate limiting for Telegram bot updates
+    }
+    return super.canActivate(context);
+  }
+}
 
 @Module({
   imports: [
@@ -45,7 +55,7 @@ const validToken = [process.env.TELEGRAM_BOT_TOKEN, process.env.BOT_TOKEN].find(
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: CustomThrottlerGuard,
     },
   ],
 })
