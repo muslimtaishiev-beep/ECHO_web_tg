@@ -41,14 +41,62 @@ export default function ChatPage() {
   const typingTimeoutRef = useRef(null);
   const navigate = useNavigate();
 
+  const [isRestoring, setIsRestoring] = useState(true);
+
   const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
   const API_URL = (rawApiUrl.startsWith('http') ? rawApiUrl : 'https://' + rawApiUrl) + '/api';
 
+  const sessionId = useRef(
+    localStorage.getItem('echo_session') || `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  );
+
   useEffect(() => {
-    if (step === 'dashboard') {
-      fetchHistory();
-    }
-  }, [step]);
+    localStorage.setItem('echo_session', sessionId.current);
+  }, []);
+
+  // Restore Active Session
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const res = await fetch(`${API_URL}/chat/session/${sessionId.current}/active-room`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.active) {
+             setRoomId(data.room.id);
+             setTopic(data.room.topic || '');
+             setMood(data.room.mood || '');
+             
+             if (data.room.status === 'waiting') {
+                setStep('waiting');
+             } else if (data.room.status === 'active') {
+                setVolunteerName(data.room.volunteerName);
+                
+                // Fetch previous messages
+                const msgRes = await fetch(`${API_URL}/chat/session/${sessionId.current}/room/${data.room.id}/messages`);
+                if (msgRes.ok) {
+                   const msgs = await msgRes.json();
+                   setMessages(msgs);
+                }
+                setStep('chatting');
+             }
+             
+             // Ensure socket connects to receive updates
+             connectSocket();
+          } else {
+             // Fetch history if they are logged in
+             if (step === 'dashboard') {
+               fetchHistory();
+             }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore session:', err);
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+    restoreSession();
+  }, []);
 
   const fetchHistory = async () => {
     setLoadingHistory(true);
@@ -68,16 +116,18 @@ export default function ChatPage() {
     }
   };
 
-  const sessionId = useRef(
-    localStorage.getItem('echo_session') || `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`
-  );
-
-  useEffect(() => {
-    localStorage.setItem('echo_session', sessionId.current);
-  }, []);
-
   // Socket event listeners
   useEffect(() => {
+    const onConnect = () => {
+      // If we reconnect, tell the server our room so we rejoin the socket channel
+      setRoomId((currentRoomId) => {
+        if (currentRoomId) {
+          socket.emit('chat:check_status', { roomId: currentRoomId });
+        }
+        return currentRoomId;
+      });
+    };
+
     const onWaiting = (data) => {
       setRoomId(data.roomId);
       setStep('waiting');
@@ -90,7 +140,10 @@ export default function ChatPage() {
     };
 
     const onNewMessage = (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        if (prev.find((p) => p.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
     };
 
     const onTypingShow = () => setIsTyping(true);
@@ -104,6 +157,7 @@ export default function ChatPage() {
       setChatEnded(true);
     };
 
+    socket.on('connect', onConnect);
     socket.on('chat:waiting', onWaiting);
     socket.on('chat:started', onStarted);
     socket.on('message:new', onNewMessage);
@@ -113,6 +167,7 @@ export default function ChatPage() {
     socket.on('partner:disconnected', onPartnerDisconnected);
 
     return () => {
+      socket.off('connect', onConnect);
       socket.off('chat:waiting', onWaiting);
       socket.off('chat:started', onStarted);
       socket.off('message:new', onNewMessage);
@@ -212,6 +267,21 @@ export default function ChatPage() {
     setFeedbackGiven(true);
     toast('Спасибо за отзыв! 💛', { icon: emoji });
   };
+
+  // ─── STEP: RECOVERING SESSION ───
+  if (isRestoring) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-4">
+        <div className="relative mx-auto w-24 h-24 mb-6">
+          <div className="absolute inset-0 rounded-full bg-primary-container/30 animate-breathe"></div>
+          <div className="absolute inset-0 rounded-full bg-primary-container/20 animate-pulse2"></div>
+        </div>
+        <p className="text-on-surface-variant font-headline font-bold uppercase tracking-widest text-sm animate-pulse">
+          Восстановление сессии...
+        </p>
+      </div>
+    );
+  }
 
   // ─── STEP: DASHBOARD (For registered users) ───
   if (step === 'dashboard') {

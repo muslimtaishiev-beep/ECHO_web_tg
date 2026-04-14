@@ -293,4 +293,62 @@ export class ChatService {
       include: { volunteer: true },
     });
   }
+
+  /**
+   * Retrieve active or waiting room for a given session (used for reconnection)
+   */
+  async getActiveRoomForSession(sessionId: string, userId?: string) {
+    const where: any = {
+      status: { in: ['waiting', 'active'] },
+    };
+    // Prioritize userId if logged in, otherwise fallback to session
+    if (userId) {
+      where.userId = userId;
+    } else {
+      where.anonSessionId = sessionId;
+    }
+
+    return this.prisma.chatRoom.findFirst({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { volunteer: true },
+    });
+  }
+
+  /**
+   * Securely fetch decrypted messages if the session corresponds to the room creator
+   */
+  async getMessagesForSession(sessionId: string, roomId: string) {
+    const room = await this.prisma.chatRoom.findFirst({
+      where: {
+        id: roomId,
+        OR: [
+          { anonSessionId: sessionId },
+          // If we had a robust way to link user token here, we would.
+          // For now, this endpoint relies on sessionId match (or anonymous users).
+        ]
+      }
+    });
+
+    if (!room) {
+      throw new Error('Room not found or unauthorized for this session');
+    }
+
+    const messages = await this.prisma.message.findMany({
+      where: { chatRoomId: roomId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return messages.map((msg) => ({
+      id: msg.id,
+      senderType: msg.senderType,
+      content: this.encryption.decrypt(
+        msg.content,
+        msg.iv,
+        msg.authTag,
+        room.encryptionKey,
+      ),
+      createdAt: msg.createdAt,
+    }));
+  }
 }

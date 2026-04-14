@@ -60,4 +60,41 @@ export class ChatController {
     }
     return this.chatService.getUserHistory(req.user.sub);
   }
+
+  /**
+   * Auto-restore active or waiting chat for a user returning to the app
+   */
+  @Get('session/:sessionId/active-room')
+  async getActiveRoom(@Param('sessionId') sessionId: string) {
+    // If the user has a token, we could decode it here, but for now we trust sessionId
+    const room = await this.chatService.getActiveRoomForSession(sessionId);
+    if (!room) {
+      return { active: false };
+    }
+    return {
+      active: true,
+      room: {
+        id: room.id,
+        status: room.status,
+        volunteerName: room.volunteer?.displayName || 'Волонтёр',
+        topic: room.topic,
+        mood: room.mood,
+      }
+    };
+  }
+
+  /**
+   * Auto-restore messages for a session's chat room securely
+   */
+  @Get('session/:sessionId/room/:roomId/messages')
+  async getSessionMessages(
+    @Param('sessionId') sessionId: string,
+    @Param('roomId') roomId: string,
+  ) {
+    try {
+      return await this.chatService.getMessagesForSession(sessionId, roomId);
+    } catch (e) {
+      throw new ForbiddenException(e.message);
+    }
+  }
 }
