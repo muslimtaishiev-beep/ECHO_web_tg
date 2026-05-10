@@ -439,7 +439,9 @@ export default function AdminPage() {
         {(currentView === 'dashboard' || currentView === 'volunteers') && (
           <section className="bg-white/60 backdrop-blur-xl rounded-[2rem] p-6 shadow-xl shadow-amber-900/5 overflow-hidden">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-headline font-extrabold">Управление волонтёрами</h2>
+              <h2 className="text-xl font-headline font-extrabold">
+                Управление волонтёрами ({volunteers.length})
+              </h2>
             </div>
 
           <div className="overflow-x-auto">
@@ -597,7 +599,7 @@ export default function AdminPage() {
         {currentView === 'audit' && (
           <section className="bg-white/60 backdrop-blur-xl rounded-[2rem] p-6 shadow-xl shadow-amber-900/5 overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-              <h2 className="text-xl font-headline font-extrabold">Логи Аудита</h2>
+              <h2 className="text-xl font-headline font-extrabold">Логи Аудита ({auditLogs.length})</h2>
               <div className="flex flex-col md:flex-row gap-2">
                 <input 
                   type="date"
