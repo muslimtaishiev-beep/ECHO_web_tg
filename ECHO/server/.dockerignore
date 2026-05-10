@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.git
+.gitignore
+npm-debug.log
+Dockerfile
+.dockerignore
+README.md
+build-log.txt
+build-errors.txt
+lint.txt
+lint.json
