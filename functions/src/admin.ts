@@ -76,6 +76,21 @@ export const verifyVolunteer = functions.https.onCall(async (request) => {
   return { ok: true };
 });
 
+/** Delete a volunteer and record the action. */
+export const deleteVolunteer = functions.https.onCall(async (request) => {
+  const adminId = await requireAdmin(request);
+  const volunteerId = request.data?.volunteerId as string;
+  if (!volunteerId) throw new functions.https.HttpsError('invalid-argument', 'volunteerId required.');
+  await db.collection('volunteers').doc(volunteerId).delete();
+  await db.collection('auditLogs').add({
+    adminId,
+    action: 'DELETE_VOLUNTEER',
+    targetId: volunteerId,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+});
+
 /** Promote an existing account to admin. */
 export const promoteAdmin = functions.https.onCall(async (request) => {
   await requireAdmin(request);
@@ -169,6 +184,17 @@ export const seedAdmin = functions.https.onRequest(async (req, res) => {
   await auth.setCustomUserClaims(uid, { role: 'admin' });
   await db.collection('admins').doc(uid).set({ uid, createdAt: new Date() });
   res.status(200).json({ ok: true });
+});
+
+/** JSON export of core collections as a callable (no hardcoded URL). */
+export const exportDataJson = functions.https.onCall(async (request) => {
+  await requireAdmin(request);
+  const out: Record<string, unknown[]> = {};
+  for (const col of ['users', 'volunteers', 'chatRooms', 'reviews', 'auditLogs']) {
+    const snap = await db.collection(col).get();
+    out[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+  return out;
 });
 
 /** JSON export of core collections (admin only, Bearer token). */

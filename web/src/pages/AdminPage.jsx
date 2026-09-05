@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
 import { db, login, getRole, watchAuth, logout } from '../lib/firebase.js';
 import {
-  approveUser, verifyVolunteer, setup2FA, verify2FA, disable2FA, verifyAdmin2FA,
+  approveUser, verifyVolunteer, deleteVolunteer, setup2FA, verify2FA, disable2FA, verifyAdmin2FA, downloadExport,
 } from '../services/auth.js';
 
 export default function AdminPage() {
@@ -15,6 +15,8 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [volunteers, setVolunteers] = useState([]);
   const [users, setUsers] = useState([]);
+  const [chats, setChats] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [stats, setStats] = useState({ rooms: 0, active: 0 });
   const [adminDoc, setAdminDoc] = useState(null);
   const [twoFAVerified, setTwoFAVerified] = useState(false);
@@ -51,7 +53,15 @@ export default function AdminPage() {
       s.docs.forEach((d) => { if (d.data().status === 'active') active++; });
       setStats({ rooms: s.size, active });
     });
-    return () => { offVol(); offUsers(); offRooms(); };
+    const offChats = onSnapshot(
+      query(collection(db, 'chatRooms'), where('status', '==', 'active'), orderBy('createdAt', 'desc')),
+      (s) => setChats(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const offAudit = onSnapshot(
+      query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(50)),
+      (s) => setAuditLogs(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    return () => { offVol(); offUsers(); offRooms(); offChats(); offAudit(); };
   }, [role]);
 
   async function handleLogin(e) {
@@ -74,6 +84,16 @@ export default function AdminPage() {
 
   async function onApprove(id) {
     try { await approveUser(id); toast.success('Пользователь одобрен'); }
+    catch (err) { toast.error(err.message); }
+  }
+
+  async function onDeleteVolunteer(id) {
+    try { await deleteVolunteer(id); toast.success('Волонтёр удалён'); }
+    catch (err) { toast.error(err.message); }
+  }
+
+  async function onExport() {
+    try { await downloadExport(); toast.success('Экспорт начался'); }
     catch (err) { toast.error(err.message); }
   }
 
@@ -178,6 +198,7 @@ export default function AdminPage() {
           <span className="font-headline font-extrabold text-lg text-[#322f22]">echo · админ</span>
           <div className="flex items-center gap-3">
             <span className="text-sm text-[#5f5b4d] font-body hidden sm:block">{user.email}</span>
+            <button onClick={onExport} className="px-4 py-2 rounded-full text-xs font-headline font-bold text-[#34654e] bg-[#baeed1]/40 hover:bg-[#baeed1]/60 transition-all">Экспорт</button>
             <button onClick={logout} className="px-4 py-2 rounded-full text-xs font-headline font-bold text-[#5f5b4d] bg-white/70 hover:bg-white transition-all">Выйти</button>
           </div>
         </div>
@@ -239,7 +260,10 @@ export default function AdminPage() {
                     <p className="font-headline font-bold text-[#322f22]">{v.displayName}</p>
                     <p className="text-sm text-[#5f5b4d] font-body truncate">{v.email}</p>
                   </div>
-                  <button onClick={() => onVerify(v.id)} className="px-5 py-2.5 rounded-full font-headline font-bold text-sm bg-[#34654e] text-white hover:brightness-110 transition-all">Подтвердить</button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onVerify(v.id)} className="px-5 py-2.5 rounded-full font-headline font-bold text-sm bg-[#34654e] text-white hover:brightness-110 transition-all">Подтвердить</button>
+                    <button onClick={() => onDeleteVolunteer(v.id)} className="px-4 py-2.5 rounded-full font-headline font-bold text-sm text-[#924529] bg-[#f99774]/15 hover:bg-[#f99774]/30 transition-all">Удалить</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -261,6 +285,45 @@ export default function AdminPage() {
                     <p className="text-sm text-[#5f5b4d] font-body truncate">{u.email}</p>
                   </div>
                   <button onClick={() => onApprove(u.id)} className="px-5 py-2.5 rounded-full font-headline font-bold text-sm bg-[#785500] text-white hover:brightness-110 transition-all">Одобрить</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Live chats */}
+        <section>
+          <h2 className="font-headline font-extrabold text-[#322f22] mb-4">Активные чаты</h2>
+          {chats.length === 0 ? (
+            <p className="text-[#5f5b4d] font-body text-sm">Нет активных чатов.</p>
+          ) : (
+            <div className="space-y-3">
+              {chats.map((c) => (
+                <div key={c.id} className="bg-white/80 backdrop-blur-xl rounded-3xl p-5 flex items-center gap-4 border border-white shadow-amber-900/5">
+                  <div className="w-11 h-11 rounded-full bg-[#baeed1] flex items-center justify-center"><span className="material-symbols-outlined text-[#2a5b45]">forum</span></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-headline font-bold text-[#322f22]">{c.anonNickname}</p>
+                    <p className="text-sm text-[#5f5b4d] font-body truncate">{c.topic || 'Общее'} · {c.source}</p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-headline font-bold bg-[#baeed1] text-[#2a5b45]">активен</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Audit logs */}
+        <section>
+          <h2 className="font-headline font-extrabold text-[#322f22] mb-4">Журнал действий</h2>
+          {auditLogs.length === 0 ? (
+            <p className="text-[#5f5b4d] font-body text-sm">Логов пока нет.</p>
+          ) : (
+            <div className="space-y-2">
+              {auditLogs.map((a) => (
+                <div key={a.id} className="bg-white/60 backdrop-blur-xl rounded-2xl px-4 py-3 flex items-center gap-3 border border-white">
+                  <span className="text-xs font-headline font-bold text-[#785500] uppercase">{a.action}</span>
+                  <span className="text-sm text-[#5f5b4d] font-body truncate flex-1">{a.target || a.details || ''}</span>
+                  <span className="text-xs text-[#5f5b4d]/60 font-body">{a.timestamp?.toDate?.() ? a.timestamp.toDate().toLocaleString() : ''}</span>
                 </div>
               ))}
             </div>

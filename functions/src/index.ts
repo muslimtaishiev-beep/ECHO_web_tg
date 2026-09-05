@@ -1,9 +1,11 @@
 export {
   approveUser,
   verifyVolunteer,
+  deleteVolunteer,
   promoteAdmin,
   seedAdmin,
   exportData,
+  exportDataJson,
   setup2FA,
   verify2FA,
   disable2FA,
