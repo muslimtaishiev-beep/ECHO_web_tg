@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─────────────────────────────────────────────────────────────
+    // ECHO — Firestore Security Rules (Row-Level Security equivalent)
+    //
+    // Roles are conveyed via Firebase Auth custom claims:
+    //   request.auth.token.role ∈ { 'admin' | 'volunteer' } (or absent)
+    // Every web user (teen or volunteer) is signed in — teenagers
+    // typically use ANONYMOUS auth, so they still have a uid.
+    // ─────────────────────────────────────────────────────────────
+
+    function signedIn()      { return request.auth != null; }
+    function uid()           { return request.auth.uid; }
+    function isAdmin()       { return signedIn() && request.auth.token.role == 'admin'; }
+    function isVolunteer()   { return signedIn() && request.auth.token.role == 'volunteer'; }
+    function isSelf(id)      { return signedIn() && uid() == id; }
+
+    // ── Teens (registered users) ─────────────────────────────────
+    match /users/{userId} {
+      allow read:  if isSelf(userId) || isAdmin();
+      allow write: if isSelf(userId) || isAdmin();
+    }
+
+    // ── Volunteers ───────────────────────────────────────────────
+    match /volunteers/{volId} {
+      // Profiles are private — only the owner, admins and other volunteers
+      // can read them (prevents anonymous visitors from harvesting data).
+      allow read:   if isSelf(volId) || isAdmin() || isVolunteer();
+      allow create: if isSelf(volId);
+      // A volunteer edits only their own row; admin can manage anyone.
+      allow update: if isSelf(volId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Admin profiles (the real gate is the 'admin' claim) ──────
+    match /admins/{adminId} {
+      allow read, write: if isSelf(adminId) || isAdmin();
+    }
+
+    // ── Telegram-only users (managed by the bot Cloud Function) ──
+    match /botUsers/{telegramId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Chat rooms ───────────────────────────────────────────────
+    match /chatRooms/{roomId} {
+      function isParticipant() {
+        return signedIn() && (
+          uid() == resource.data.userId ||
+          uid() == resource.data.volunteerId
+        );
+      }
+      // A signed-in teen creates a room owned by their uid.
+      // (The Telegram bot creates rooms via the Admin SDK, bypassing rules.)
+      allow read:   if isParticipant() || isAdmin() || (isVolunteer() && resource.data.status == 'waiting');
+      allow create: if signedIn() && request.resource.data.userId == uid();
+      // Participants update their room; a volunteer can CLAIM a waiting room.
+      allow update: if isParticipant() || isAdmin() || (
+        isVolunteer()
+        && resource.data.status == 'waiting'
+        && request.resource.data.volunteerId == uid()
+        && request.resource.data.status == 'active'
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Messages (subcollection of a room) ───────────────────────
+    match /chatRooms/{roomId}/messages/{messageId} {
+      function isParticipant() {
+        return signedIn() && (
+          uid() == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.userId ||
+          uid() == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.volunteerId
+        );
+      }
+      allow read:   if isParticipant() || isAdmin();
+      allow create: if isParticipant();
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Reviews ──────────────────────────────────────────────────
+    match /reviews/{reviewId} {
+      allow read:   if isAdmin() || isVolunteer() || (signedIn() && resource.data.userId == uid());
+      // Only the teenager who owns the room can leave a review for it.
+      allow create: if signedIn()
+        && request.resource.data.userId == uid()
+        && get(/databases/$(database)/documents/chatRooms/$(request.resource.data.chatRoomId)).data.userId == uid();
+      allow update: if isAdmin() || (isVolunteer() && resource.data.volunteerId == uid());
+      allow delete: if isAdmin();
+    }
+
+    // ── Audit log (admin-only) ───────────────────────────────────
+    match /auditLogs/{logId} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ── Public platform stats (maintained by a scheduled function) ─
+    match /platform/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

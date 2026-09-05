@@ -1,0 +1,12 @@
+{
+  "name": "echo-firebase",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore \"node --test tests/rules.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.3",
+    "firebase-tools": "^13.0.0"
+  }
+}

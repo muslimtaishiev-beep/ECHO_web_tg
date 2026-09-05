@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+# Builds
+dist
+functions/lib
+.firebase/
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Service account keys (never commit)
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# Logs
+*.log
+firebase-debug.log
+
+# OS
+.DS_Store
